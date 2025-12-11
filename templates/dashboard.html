@@ -1,0 +1,406 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Painel – Gerador de Conteúdo com IA</title>
+    <!-- Depois vamos ligar este CSS -->
+    <link rel="stylesheet" href="{% static 'css/painel.css' %}">
+</head>
+
+<body class="app-body">
+    <header class="app-header">
+        <div class="app-header__logo">
+            <span class="app-header__logo-icon">IA</span>
+            <span class="app-header__logo-text">Gerador de Conteúdo</span>
+        </div>
+        <nav class="app-header__nav">
+            <span class="app-header__nav-item app-header__nav-item--active">Painel</span>
+            <span class="app-header__nav-item">Histórico</span>
+        </nav>
+    </header>
+
+    <main class="app-main-wrapper">
+        <div class="app-tabs">
+            <div class="app-tabs__nav">
+                <button class="app-tabs__button is-active" data-tab="tab-gerar">
+                    ✍️ Gerar conteúdo
+                </button>
+                <button class="app-tabs__button" data-tab="tab-sobre">
+                    ℹ️ Sobre o app
+                </button>
+            </div>
+
+            <!-- ABA 1: GERAR CONTEÚDO -->
+            <div class="app-tab-pane" id="tab-gerar">
+                <div class="app-main">
+                    <section class="app-panel">
+                        <div class="app-panel__header">
+                            <h1 class="app-panel__title">Gerar conteúdo com IA</h1>
+                            <p class="app-panel__subtitle">
+                                Preencha o briefing abaixo e gere textos prontos para redes sociais, blog ou vídeos
+                                curtos.
+                            </p>
+                        </div>
+
+                        <!-- FORMULÁRIO (o mesmo que já está usando) -->
+                        <form class="form-briefing" id="form-briefing">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="nicho">Nicho / Tipo de negócio *</label>
+                                    <input type="text" id="nicho" name="nicho"
+                                        placeholder="Ex: clínica de psicologia, consultório odontológico, empresa de ar-condicionado..."
+                                        required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tema">Tema do conteúdo *</label>
+                                    <input type="text" id="tema" name="tema"
+                                        placeholder="Ex: ansiedade, manutenção preventiva de ar-condicionado, alimentação saudável..."
+                                        required>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="plataforma">Plataforma *</label>
+                                    <select id="plataforma" name="plataforma" required>
+                                        <option value="">Selecione uma plataforma...</option>
+                                        <option>Instagram (feed)</option>
+                                        <option>Instagram Reels</option>
+                                        <option>Facebook (feed)</option>
+                                        <option>LinkedIn</option>
+                                        <option>Blog</option>
+                                        <option>YouTube (descrição de vídeo)</option>
+                                        <option>YouTube Shorts</option>
+                                        <option>TikTok (vídeo curto)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tom">Tom *</label>
+                                    <select id="tom" name="tom" required>
+                                        <option value="">Selecione o tom...</option>
+                                        <option>Normal</option>
+                                        <option>Informativo</option>
+                                        <option>Inspirador</option>
+                                        <option>Urgente</option>
+                                        <option>Informal</option>
+                                        <option>Educativo</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="tamanho">Tamanho</label>
+                                    <select id="tamanho" name="tamanho">
+                                        <option>Curto</option>
+                                        <option>Médio</option>
+                                        <option>Longo</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="publico">Público-alvo</label>
+                                    <select id="publico" name="publico">
+                                        <option>Geral</option>
+                                        <option>Jovens adultos</option>
+                                        <option>Famílias</option>
+                                        <option>Idosos</option>
+                                        <option>Adolescentes</option>
+                                        <option>Empresários</option>
+                                        <option>Profissionais da saúde</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="palavras_chave">Palavras-chave (SEO)</label>
+                                    <input type="text" id="palavras_chave" name="palavras_chave"
+                                        placeholder="Ex: bem-estar, medicina preventiva, manutenção preventiva, PMOC...">
+                                </div>
+                            </div>
+
+                            <div class="form-row form-row--inline">
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="cta" name="cta">
+                                    <label for="cta">Incluir CTA (chamada para ação)</label>
+                                </div>
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="hashtags" name="hashtags">
+                                    <label for="hashtags">Incluir hashtags</label>
+                                </div>
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="sugestoes_imagens" name="sugestoes_imagens">
+                                    <label for="sugestoes_imagens">Incluir sugestões de imagens para o post</label>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group form-group--compact">
+                                    <label for="modelo">Modelo de IA</label>
+                                    <select id="modelo" name="modelo">
+                                        <option>gpt-4.1-mini</option>
+                                        <option>gpt-4.1</option>
+                                    </select>
+                                </div>
+                                <div class="form-group form-group--compact">
+                                    <label for="temperature">Criatividade</label>
+                                    <input type="number" id="temperature" name="temperature" min="0" max="1" step="0.05"
+                                        value="0.7">
+                                    <small class="form-help">0 = mais objetivo, 1 = mais criativo</small>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary" id="btn-gerar">
+                                    Gerar conteúdo
+                                </button>
+                                <span class="form-status" id="form-status"></span>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="app-result">
+                        <div class="app-result__card">
+                            <div class="app-result__header">
+                                <h2 class="app-result__title">Resultado</h2>
+                                <button type="button" class="btn-secondary" id="btn-copiar" disabled>
+                                    Copiar texto
+                                </button>
+                            </div>
+                            <div class="app-result__body">
+                                <pre id="resultado" class="app-result__content"></pre>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- ABA 2: SOBRE O APP -->
+            <div class="app-tab-pane is-hidden" id="tab-sobre">
+                <section class="app-about">
+                    <h1 class="app-about__title">Sobre o Gerador de Conteúdo com IA</h1>
+
+                    <p class="app-about__text">
+                        Este gerador foi pensado para <strong>profissionais e negócios</strong> que precisam produzir
+                        conteúdo recorrente,
+                        mas não têm tempo para escrever tudo do zero.
+                    </p>
+
+                    <h2 class="app-about__subtitle">Onde você pode usar</h2>
+                    <ul class="app-about__list">
+                        <li>Instagram (feed e Reels)</li>
+                        <li>Facebook (feed)</li>
+                        <li>LinkedIn</li>
+                        <li>Blog</li>
+                        <li>Descrição de vídeos no YouTube</li>
+                        <li>YouTube Shorts</li>
+                        <li>TikTok (vídeos curtos)</li>
+                    </ul>
+
+                    <h2 class="app-about__subtitle">Como funciona na prática</h2>
+                    <ol class="app-about__list app-about__list--ordered">
+                        <li><strong>Informe o nicho</strong> do seu negócio (ou do seu cliente).</li>
+                        <li><strong>Defina o tema</strong> do conteúdo que deseja gerar.</li>
+                        <li>Escolha a <strong>plataforma</strong>, o <strong>tom</strong>, o <strong>tamanho</strong> e
+                            o <strong>público-alvo</strong>.</li>
+                        <li>Opcionalmente, informe <strong>palavras-chave de SEO</strong>, marque se deseja
+                            <strong>CTA</strong>, <strong>hashtags</strong> e <strong>sugestões de
+                                imagens/cenas</strong>.</li>
+                        <li>Clique em <strong>“Gerar conteúdo”</strong> e copie o texto pronto para usar nas suas redes.
+                        </li>
+                    </ol>
+
+                    <p class="app-about__text">
+                        Se a plataforma for de <strong>vídeo curto</strong> (Reels / Shorts / TikTok), o app gera
+                        também:
+                    </p>
+
+                    <ul class="app-about__list">
+                        <li>Ideia de vídeo</li>
+                        <li>Roteiro sugerido</li>
+                        <li>Sugestões de cenas</li>
+                        <li>Sugestões de músicas (por estilo)</li>
+                    </ul>
+
+                    <h2 class="app-about__subtitle">Possíveis planos (para você vender como serviço)</h2>
+                    <ul class="app-about__list">
+                        <li>
+                            <strong>Plano Starter</strong> – Até 30 conteúdos/mês, foco em 1 rede social. Indicado para
+                            autônomos e pequenos negócios.
+                        </li>
+                        <li>
+                            <strong>Plano Profissional</strong> – Até 80 conteúdos/mês, até 3 redes (Instagram,
+                            Facebook, LinkedIn), sugestões de imagens e vídeos incluídas.
+                        </li>
+                        <li>
+                            <strong>Plano Agência</strong> – Conteúdos ilimitados sob demanda, múltiplos nichos e
+                            clientes. Ideal para social media, agências e consultorias.
+                        </li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </main>
+
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.getElementById("form-briefing");
+            const statusEl = document.getElementById("form-status");
+            const resultEl = document.getElementById("resultado");
+            const btnGerar = document.getElementById("btn-gerar");
+            const btnCopiar = document.getElementById("btn-copiar");
+
+            const nichoInput = document.getElementById("nicho");
+            const temaInput = document.getElementById("tema");
+            const plataformaSelect = document.getElementById("plataforma");
+            const tomSelect = document.getElementById("tom");
+            const sugestoesLabel = document.querySelector("label[for='sugestoes_imagens']");
+
+            const plataformasVideoCurto = [
+                "Instagram Reels",
+                "YouTube Shorts",
+                "TikTok (vídeo curto)"
+            ];
+
+            // Tabs
+            const tabButtons = document.querySelectorAll(".app-tabs__button");
+            const tabPanes = document.querySelectorAll(".app-tab-pane");
+
+            tabButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    const targetId = btn.getAttribute("data-tab");
+
+                    tabButtons.forEach((b) => b.classList.remove("is-active"));
+                    btn.classList.add("is-active");
+
+                    tabPanes.forEach((pane) => {
+                        if (pane.id === targetId) {
+                            pane.classList.remove("is-hidden");
+                        } else {
+                            pane.classList.add("is-hidden");
+                        }
+                    });
+                });
+            });
+
+
+            function atualizarLabelSugestoes() {
+                if (plataformasVideoCurto.includes(plataformaSelect.value)) {
+                    sugestoesLabel.textContent = "Incluir sugestões de cenas e músicas para vídeo curto";
+                } else {
+                    sugestoesLabel.textContent = "Incluir sugestões de imagens para o post";
+                }
+            }
+
+            atualizarLabelSugestoes();
+            plataformaSelect.addEventListener("change", atualizarLabelSugestoes);
+
+            form.addEventListener("submit", async function (e) {
+                e.preventDefault();
+
+                statusEl.textContent = "";
+
+                const nicho = nichoInput.value.trim();
+                const tema = temaInput.value.trim();
+                const plataforma = plataformaSelect.value;
+                const tom = tomSelect.value;
+
+                if (!nicho) {
+                    statusEl.textContent = "Informe o nicho ou tipo de negócio.";
+                    nichoInput.focus();
+                    return;
+                }
+
+                if (!tema) {
+                    statusEl.textContent = "Informe o tema do conteúdo.";
+                    temaInput.focus();
+                    return;
+                }
+
+                if (!plataforma) {
+                    statusEl.textContent = "Selecione a plataforma.";
+                    plataformaSelect.focus();
+                    return;
+                }
+
+                if (!tom) {
+                    statusEl.textContent = "Selecione o tom do conteúdo.";
+                    tomSelect.focus();
+                    return;
+                }
+
+                const payload = {
+                    tema: tema,
+                    plataforma: plataforma,
+                    tom: tom,
+                    tamanho: document.getElementById("tamanho").value,
+                    publico: document.getElementById("publico").value,
+                    palavras_chave: document.getElementById("palavras_chave").value,
+                    nicho: nicho,
+                    cta: document.getElementById("cta").checked,
+                    hashtags: document.getElementById("hashtags").checked,
+                    sugestoes_imagens: document.getElementById("sugestoes_imagens").checked,
+                    modelo: document.getElementById("modelo").value,
+                    temperature: parseFloat(document.getElementById("temperature").value || "0.7")
+                };
+
+                btnGerar.disabled = true;
+                statusEl.textContent = "Gerando conteúdo com IA...";
+                resultEl.textContent = "";
+                btnCopiar.disabled = true;
+
+                try {
+                    const response = await fetch("/api/gerar/", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || "Erro ao gerar conteúdo");
+                    }
+
+                    const data = await response.json();
+                    const texto = data.resultado || "";
+
+                    resultEl.textContent = texto;
+                    statusEl.textContent = "Conteúdo gerado com sucesso.";
+                    btnCopiar.disabled = !texto;
+                } catch (err) {
+                    console.error(err);
+                    statusEl.textContent = "Erro ao gerar conteúdo. Tente novamente.";
+                } finally {
+                    btnGerar.disabled = false;
+                }
+            });
+
+            btnCopiar.addEventListener("click", async function () {
+                const texto = resultEl.textContent;
+                if (!texto) return;
+
+                try {
+                    await navigator.clipboard.writeText(texto);
+                    const original = btnCopiar.textContent;
+                    btnCopiar.textContent = "Copiado!";
+                    setTimeout(() => {
+                        btnCopiar.textContent = original;
+                    }, 2000);
+                } catch (err) {
+                    console.error(err);
+                    statusEl.textContent = "Não foi possível copiar para a área de transferência.";
+                }
+            });
+        });
+
+    </script>
+</body>
+
+</html>
+
+</body>
+
+</html>
