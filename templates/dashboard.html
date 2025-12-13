@@ -30,11 +30,11 @@
                 <button class="app-tabs__button is-active" data-tab="tab-gerar">
                     ✍️ Gerar conteúdo
                 </button>
-                <button class="app-tabs__button" data-tab="tab-sobre">
-                    ℹ️ Sobre o app
-                </button>
                 <button class="app-tabs__button" data-tab="tab-historico">
                     📜 Histórico
+                </button>
+                <button class="app-tabs__button" data-tab="tab-sobre">
+                    ℹ️ Sobre o app
                 </button>
 
             </div>
@@ -198,7 +198,16 @@
                 </div>
             </div>
 
-            <!-- ABA 2: SOBRE O APP -->
+
+            <!-- ABA 2: HISTÓRICO -->
+            <div class="app-tab-pane is-hidden" id="tab-historico">
+                <section class="app-panel">
+                    <h1 class="app-panel__title">Histórico</h1>
+                    <div id="historico-lista"></div>
+                </section>
+            </div>
+
+            <!-- ABA 3: SOBRE O APP -->
             <div class="app-tab-pane is-hidden" id="tab-sobre">
                 <section class="app-about">
                     <h1 class="app-about__title">Sobre o Gerador de Conteúdo com IA</h1>
@@ -249,15 +258,6 @@
                 </section>
             </div>
 
-            <!-- ABA 3: HISTÓRICO -->
-            <div class="app-tab-pane is-hidden" id="tab-historico">
-                <section class="app-panel">
-                    <h1 class="app-panel__title">Histórico</h1>
-                    <div id="historico-lista"></div>
-                </section>
-            </div>
-
-
         </div>
     </main>
     <!-- Modal: Limite mensal atingido -->
@@ -300,364 +300,48 @@
     </script>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const form = document.getElementById("form-briefing");
-            const statusEl = document.getElementById("form-status");
-            const resultEl = document.getElementById("resultado");
-            const btnGerar = document.getElementById("btn-gerar");
-            const btnCopiar = document.getElementById("btn-copiar");
+        /* =====================================================
+           FUNÇÕES GLOBAIS
+        ===================================================== */
 
-            const nichoInput = document.getElementById("nicho");
-            const temaInput = document.getElementById("tema");
-            const plataformaSelect = document.getElementById("plataforma");
-            const tomSelect = document.getElementById("tom");
-            const sugestoesLabel = document.querySelector("label[for='sugestoes_imagens']");
+        window.atualizarUsoMensal = function (used, limit) {
+            const usedEl = document.getElementById("usage-used");
+            const limitEl = document.getElementById("usage-limit");
 
-            const plataformasVideoCurto = [
-                "Instagram Reels",
-                "YouTube Shorts",
-                "TikTok (vídeo curto)"
-            ];
+            if (!usedEl || !limitEl) return;
 
-            // Tabs
-            const tabButtons = document.querySelectorAll(".app-tabs__button");
-            const tabPanes = document.querySelectorAll(".app-tab-pane");
+            usedEl.textContent = used;
+            limitEl.textContent = limit;
+        };
 
-            tabButtons.forEach((btn) => {
-                btn.addEventListener("click", () => {
-                    const targetId = btn.getAttribute("data-tab");
-
-                    tabButtons.forEach((b) => b.classList.remove("is-active"));
-                    btn.classList.add("is-active");
-
-                    tabPanes.forEach((pane) => {
-                        if (pane.id === targetId) {
-                            pane.classList.remove("is-hidden");
-                        } else {
-                            pane.classList.add("is-hidden");
-                        }
-                    });
-
-                    // 🔥 SE FOR HISTÓRICO, CARREGA DA API
-                    if (targetId === "tab-historico" && typeof carregarHistorico === "function") {
-                        carregarHistorico();
-                    }
-                });
-            });
-
-
-
-            function atualizarLabelSugestoes() {
-                if (plataformasVideoCurto.includes(plataformaSelect.value)) {
-                    sugestoesLabel.textContent = "Incluir sugestões de cenas e músicas para vídeo curto";
-                } else {
-                    sugestoesLabel.textContent = "Incluir sugestões de imagens para o post";
-                }
-            }
-
-            atualizarLabelSugestoes();
-            plataformaSelect.addEventListener("change", atualizarLabelSugestoes);
-
-            window.atualizarUsoMensal = function (used, limit) {
-                const usedEl = document.getElementById("usage-used");
-                const limitEl = document.getElementById("usage-limit");
-
-                if (!usedEl || !limitEl) return;
-
-                usedEl.textContent = used;
-                limitEl.textContent = limit;
-            };
-
-            form.addEventListener("submit", async function (e) {
-                e.preventDefault();
-
-                statusEl.textContent = "";
-
-                const nicho = nichoInput.value.trim();
-                const tema = temaInput.value.trim();
-                const plataforma = plataformaSelect.value;
-                const tom = tomSelect.value;
-
-                if (!nicho) {
-                    statusEl.textContent = "Informe o nicho ou tipo de negócio.";
-                    nichoInput.focus();
-                    return;
-                }
-
-                if (!tema) {
-                    statusEl.textContent = "Informe o tema do conteúdo.";
-                    temaInput.focus();
-                    return;
-                }
-
-                if (!plataforma) {
-                    statusEl.textContent = "Selecione a plataforma.";
-                    plataformaSelect.focus();
-                    return;
-                }
-
-                if (!tom) {
-                    statusEl.textContent = "Selecione o tom do conteúdo.";
-                    tomSelect.focus();
-                    return;
-                }
-
-                const payload = {
-                    tema: tema,
-                    plataforma: plataforma,
-                    tom: tom,
-                    tamanho: document.getElementById("tamanho").value,
-                    publico: document.getElementById("publico").value,
-                    palavras_chave: document.getElementById("palavras_chave").value,
-                    nicho: nicho,
-                    cta: document.getElementById("cta").checked,
-                    hashtags: document.getElementById("hashtags").checked,
-                    sugestoes_imagens: document.getElementById("sugestoes_imagens").checked,
-                    modelo: document.getElementById("modelo").value,
-                    temperature: parseFloat(document.getElementById("temperature").value || "0.7")
-                };
-
-                btnGerar.disabled = true;
-                statusEl.textContent = "Gerando conteúdo com IA...";
-                resultEl.textContent = "";
-                btnCopiar.disabled = true;
-
-                try {
-                    const token = localStorage.getItem("access_token");
-
-                    const response = await fetch("/api/gerar/", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + token
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        if (response.status === 429) {
-                            statusEl.textContent = "Limite mensal atingido.";
-                            window.abrirModalLimite();
-                            return; // cai no finally e reabilita o botão
-                        }
-
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(errorData.error || "Erro ao gerar conteúdo");
-                    }
-
-                    const data = await response.json();
-                    const texto = data.resultado || "";
-
-                    resultEl.textContent = texto;
-                    statusEl.textContent = "Conteúdo gerado com sucesso.";
-                    btnCopiar.disabled = !texto;
-
-                    if (typeof data.used !== "undefined" && typeof data.limit !== "undefined") {
-                        window.atualizarUsoMensal(data.used, data.limit);
-                    }
-
-                } catch (err) {
-                    console.error(err);
-                    statusEl.textContent = "Erro ao gerar conteúdo. Tente novamente.";
-                } finally {
-                    btnGerar.disabled = false;
-                }
-            });
-
-            btnCopiar.addEventListener("click", async function () {
-                const texto = resultEl.textContent;
-                if (!texto) return;
-
-                try {
-                    await navigator.clipboard.writeText(texto);
-                    const original = btnCopiar.textContent;
-                    btnCopiar.textContent = "Copiado!";
-                    setTimeout(() => {
-                        btnCopiar.textContent = original;
-                    }, 2000);
-                } catch (err) {
-                    console.error(err);
-                    statusEl.textContent = "Não foi possível copiar para a área de transferência.";
-                }
-            });
-
-            function abrirModalLimite() {
-                document.getElementById("modal-limite").classList.add("is-visible");
-            }
-
-            function fecharModalLimite() {
-                document.getElementById("modal-limite").classList.remove("is-visible");
-            }
-        });
-
-
-    </script>
-
-    <script>
-        (async function () {
+        window.carregarHistorico = async function () {
             const token = localStorage.getItem("access_token");
+            const container = document.getElementById("historico-lista");
 
-            // 1. Sem token → login
-            if (!token) {
-                window.location.href = "/login/";
-                return;
-            }
+            if (!container) return;
+
+            container.innerHTML = "<p>Carregando histórico...</p>";
 
             try {
-                // 2. Validar no backend
-                const response = await fetch("/api/me/", {
-                    method: "GET",
+                const response = await fetch("/api/historico/", {
                     headers: {
                         "Authorization": "Bearer " + token
                     }
                 });
 
                 if (!response.ok) {
-                    localStorage.removeItem("access_token");
-                    localStorage.removeItem("refresh_token");
-                    window.location.href = "/login/";
+                    container.innerHTML = "<p>Histórico indisponível neste plano.</p>";
                     return;
                 }
 
                 const data = await response.json();
 
-                // ===============================
-                // Inicializar contador mensal
-                // ===============================
-                try {
-                    const usageResp = await fetch("/api/usage/", {
-                        headers: {
-                            "Authorization": "Bearer " + token
-                        }
-                    });
-
-                    if (usageResp.ok) {
-                        const usageData = await usageResp.json();
-
-                        if (window.atualizarUsoMensal) {
-                            window.atualizarUsoMensal(usageData.used, usageData.limit);
-                        }
-                    }
-
-                } catch (e) {
-                    console.warn("Não foi possível carregar uso mensal", e);
+                if (!data.length) {
+                    container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
+                    return;
                 }
 
-
-                /* =========================
-                   LOGOUT
-                ========================= */
-                const btnLogout = document.getElementById("btn-logout");
-
-                if (btnLogout) {
-                    btnLogout.addEventListener("click", async () => {
-                        const access = localStorage.getItem("access_token");
-                        const refresh = localStorage.getItem("refresh_token");
-
-                        try {
-                            if (access && refresh) {
-                                await fetch("/auth/logout/", {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                        "Authorization": "Bearer " + access
-                                    },
-                                    body: JSON.stringify({ refresh })
-                                });
-                            }
-                        } finally {
-                            localStorage.removeItem("access_token");
-                            localStorage.removeItem("refresh_token");
-                            window.location.href = "/login/";
-                        }
-                    });
-                }
-
-
-                /* =========================
-                  GERADOR DE CONTEÚDO
-               ========================= */
-
-                const navPainel = document.getElementById("nav-painel");
-
-                if (navPainel) {
-                    navPainel.addEventListener("click", () => {
-                        // Abrir aba Gerar conteúdo
-                        document
-                            .querySelector('[data-tab="tab-gerar"]')
-                            ?.click();
-
-                        // Atualizar estado visual do header
-                        document
-                            .querySelectorAll(".app-header__nav-item")
-                            .forEach(el => el.classList.remove("is-active"));
-
-                        navPainel.classList.add("is-active");
-                    });
-                }
-
-
-                /* =========================
-                    HISTÓRICO POR PLANO
-                 ========================= */
-                const navHistorico = document.getElementById("nav-historico");
-
-                if (navHistorico) {
-                    const plano = data.plan;
-
-                    if (plano === "Creator" || plano === "Elite") {
-                        navHistorico.classList.remove("is-disabled");
-
-                        navHistorico.addEventListener("click", () => {
-                            // Abrir aba Histórico
-                            document
-                                .querySelector('[data-tab="tab-historico"]')
-                                ?.click();
-
-                            // Atualizar estado visual do menu
-                            document
-                                .querySelectorAll(".app-header__nav-item")
-                                .forEach(el => el.classList.remove("is-active"));
-
-                            navHistorico.classList.add("is-active");
-
-
-                        });
-
-                    } else {
-                        navHistorico.classList.add("is-disabled");
-                        navHistorico.title = "Disponível a partir do plano Creator";
-                    }
-                }
-
-                async function carregarHistorico() {
-                    const token = localStorage.getItem("access_token");
-                    const container = document.getElementById("historico-lista");
-
-                    if (!container) return;
-
-                    container.innerHTML = "<p>Carregando histórico...</p>";
-
-                    try {
-                        const response = await fetch("/api/historico/", {
-                            headers: {
-                                "Authorization": "Bearer " + token
-                            }
-                        });
-
-                        if (!response.ok) {
-                            container.innerHTML = "<p>Histórico indisponível neste plano.</p>";
-                            return;
-                        }
-
-                        const data = await response.json();
-
-                        if (!data.length) {
-                            container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
-                            return;
-                        }
-
-                        container.innerHTML = data.map(item => `
+                container.innerHTML = data.map(item => `
             <div class="history-item">
                 <strong>${item.tema}</strong><br>
                 <small>${item.plataforma} • ${item.created_at}</small>
@@ -665,57 +349,224 @@
             </div>
         `).join("");
 
-                    } catch (e) {
-                        container.innerHTML = "<p>Erro ao carregar histórico.</p>";
+            } catch (e) {
+                container.innerHTML = "<p>Erro ao carregar histórico.</p>";
+            }
+        };
+
+        /* =====================================================
+           DASHBOARD
+        ===================================================== */
+
+        document.addEventListener("DOMContentLoaded", async function () {
+
+            const token = localStorage.getItem("access_token");
+
+            /* =========================
+               AUTENTICAÇÃO
+            ========================= */
+            if (!token) {
+                window.location.href = "/login/";
+                return;
+            }
+
+            let userData = null;
+
+            try {
+                const response = await fetch("/api/me/", {
+                    headers: {
+                        "Authorization": "Bearer " + token
                     }
+                });
+
+                if (!response.ok) {
+                    localStorage.clear();
+                    window.location.href = "/login/";
+                    return;
                 }
 
-                /* =========================
-                   ASSINATURA INATIVA
-                ========================= */
-                if (!data.subscription_active) {
-                    document.body.innerHTML = `
-                <div style="
-                    min-height:100vh;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-family:system-ui;
-                    background:#f9fafb;
-                ">
-                    <div style="
-                        background:#fff;
-                        padding:2rem;
-                        border-radius:1rem;
-                        border:1px solid #e5e7eb;
-                        max-width:420px;
-                        text-align:center;
-                    ">
-                        <h2 style="margin-bottom:0.5rem;">Assinatura inativa</h2>
-                        <p style="color:#6b7280; margin-bottom:1rem;">
-                            Sua assinatura não está ativa no momento.
-                        </p>
-                        <a href="/" style="
-                            display:inline-block;
-                            padding:0.5rem 1rem;
-                            border-radius:999px;
-                            background:#2563eb;
-                            color:white;
-                            text-decoration:none;
-                            font-weight:600;
-                        ">
-                            Ver planos
-                        </a>
-                    </div>
-                </div>
-            `;
-                }
+                userData = await response.json();
 
             } catch (e) {
-                console.error(e);
                 window.location.href = "/login/";
+                return;
             }
-        })();
+
+            /* =========================
+               CONTADOR DE USO MENSAL
+            ========================= */
+            try {
+                const usageResp = await fetch("/api/usage/", {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+
+                if (usageResp.ok) {
+                    const usageData = await usageResp.json();
+                    atualizarUsoMensal(usageData.used, usageData.limit);
+                }
+            } catch (e) { }
+
+            /* =========================
+               LOGOUT
+            ========================= */
+            const btnLogout = document.getElementById("btn-logout");
+
+            if (btnLogout) {
+                btnLogout.addEventListener("click", async () => {
+                    try {
+                        await fetch("/auth/logout/", {
+                            method: "POST",
+                            headers: {
+                                "Authorization": "Bearer " + token,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                refresh: localStorage.getItem("refresh_token")
+                            })
+                        });
+                    } catch (e) { }
+
+                    localStorage.clear();
+                    window.location.href = "/login/";
+                });
+            }
+
+            /* =========================
+               TABS INTERNAS
+            ========================= */
+            const tabButtons = document.querySelectorAll(".app-tabs__button");
+            const tabPanes = document.querySelectorAll(".app-tab-pane");
+
+            tabButtons.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const targetId = btn.dataset.tab;
+
+                    tabButtons.forEach(b => b.classList.remove("is-active"));
+                    btn.classList.add("is-active");
+
+                    tabPanes.forEach(pane => {
+                        pane.classList.toggle("is-hidden", pane.id !== targetId);
+                    });
+
+                    if (targetId === "tab-historico") {
+                        carregarHistorico();
+                    }
+                });
+            });
+
+            /* =========================
+               MENU SUPERIOR
+            ========================= */
+            const navPainel = document.getElementById("nav-painel");
+            const navHistorico = document.getElementById("nav-historico");
+
+            if (navPainel) {
+                navPainel.addEventListener("click", () => {
+                    document.querySelector('[data-tab="tab-gerar"]')?.click();
+                    ativarMenu(navPainel);
+                });
+            }
+
+            if (navHistorico) {
+                if (userData.plan === "Creator" || userData.plan === "Elite") {
+
+                    navHistorico.classList.remove("is-disabled");
+                    navHistorico.style.cursor = "pointer";
+
+                    navHistorico.addEventListener("click", () => {
+                        document.querySelector('[data-tab="tab-historico"]')?.click();
+                        ativarMenu(navHistorico);
+                    });
+
+                } else {
+                    navHistorico.classList.add("is-disabled");
+                    navHistorico.title = "Disponível a partir do plano Creator";
+                }
+            }
+
+            function ativarMenu(el) {
+                document.querySelectorAll(".app-header__nav-item")
+                    .forEach(i => i.classList.remove("is-active"));
+                el.classList.add("is-active");
+            }
+
+            /* =========================
+               FORMULÁRIO DE GERAÇÃO
+            ========================= */
+            const form = document.getElementById("form-briefing");
+            const statusEl = document.getElementById("form-status");
+            const resultEl = document.getElementById("resultado");
+            const btnGerar = document.getElementById("btn-gerar");
+            const btnCopiar = document.getElementById("btn-copiar");
+
+            if (!form) return;
+
+            form.addEventListener("submit", async function (e) {
+                e.preventDefault();
+
+                statusEl.textContent = "";
+                btnGerar.disabled = true;
+                btnCopiar.disabled = true;
+                resultEl.textContent = "Gerando conteúdo com IA...";
+
+                const payload = {
+                    tema: document.getElementById("tema").value,
+                    plataforma: document.getElementById("plataforma").value,
+                    tom: document.getElementById("tom").value,
+                    tamanho: document.getElementById("tamanho").value,
+                    publico: document.getElementById("publico").value,
+                    palavras_chave: document.getElementById("palavras_chave").value,
+                    nicho: document.getElementById("nicho").value,
+                    cta: document.getElementById("cta").checked,
+                    hashtags: document.getElementById("hashtags").checked,
+                    sugestoes_imagens: document.getElementById("sugestoes_imagens").checked,
+                    modelo: document.getElementById("modelo").value,
+                    temperature: parseFloat(document.getElementById("temperature").value || "0.7")
+                };
+
+                try {
+                    const response = await fetch("/api/gerar/", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + token,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429) {
+                        abrirModalLimite();
+                        resultEl.textContent = "";
+                        return;
+                    }
+
+                    if (!response.ok) throw new Error();
+
+                    const data = await response.json();
+
+                    resultEl.textContent = data.resultado || "";
+                    btnCopiar.disabled = false;
+                    statusEl.textContent = "Conteúdo gerado com sucesso.";
+
+                    atualizarUsoMensal(data.used, data.limit);
+
+                } catch (e) {
+                    resultEl.textContent = "";
+                    statusEl.textContent = "Erro ao gerar conteúdo.";
+                } finally {
+                    btnGerar.disabled = false;
+                }
+            });
+
+            btnCopiar.addEventListener("click", async () => {
+                await navigator.clipboard.writeText(resultEl.textContent);
+                btnCopiar.textContent = "Copiado!";
+                setTimeout(() => btnCopiar.textContent = "Copiar texto", 2000);
+            });
+
+        });
     </script>
 
 </body>
