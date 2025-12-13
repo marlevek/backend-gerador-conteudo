@@ -9,8 +9,6 @@ db.sqlite3
 *.log
 *.pot
 *.pyc
-*/migrations/*.py
-!*/migrations/__init__.py
 
 # ==========================================
 # Ambiente Virtual
