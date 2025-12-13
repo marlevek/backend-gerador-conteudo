@@ -17,8 +17,10 @@
             <span class="app-header__logo-text">Gerador de Conteúdo</span>
         </div>
         <nav class="app-header__nav">
-            <span class="app-header__nav-item app-header__nav-item--active">Painel</span>
-            <span class="app-header__nav-item">Histórico</span>
+            <span class="app-header__nav-item is-active" id="nav-painel">Painel</span>
+            <span class="app-header__nav-item" id="nav-historico">Histórico</span>
+            <span class="app-header__nav-item" id="btn-logout">Sair</span>
+
         </nav>
     </header>
 
@@ -31,6 +33,10 @@
                 <button class="app-tabs__button" data-tab="tab-sobre">
                     ℹ️ Sobre o app
                 </button>
+                <button class="app-tabs__button" data-tab="tab-historico">
+                    📜 Histórico
+                </button>
+
             </div>
 
             <!-- ABA 1: GERAR CONTEÚDO -->
@@ -44,6 +50,17 @@
                                 curtos.
                             </p>
                         </div>
+
+                        <div class="usage-indicator" id="usage-indicator">
+                            <span class="usage-text">
+                                Uso do mês:
+                                <strong id="usage-used">0</strong>
+                                de
+                                <strong id="usage-limit">0</strong>
+                                conteúdos
+                            </span>
+                        </div>
+
 
                         <!-- FORMULÁRIO (o mesmo que já está usando) -->
                         <form class="form-briefing" id="form-briefing">
@@ -138,9 +155,15 @@
                                 <div class="form-group form-group--compact">
                                     <label for="modelo">Modelo de IA</label>
                                     <select id="modelo" name="modelo">
-                                        <option>gpt-4.1-mini</option>
-                                        <option>gpt-4.1</option>
+                                        <option value="gpt-4.1-mini">Rápido (padrão)</option>
+                                        <option value="gpt-4.1">Profissional</option>
                                     </select>
+                                    <smal class="form-help">
+                                        <strong>Rápido (gpt-4.1-mini):</strong> ideal para posts e textos curtos do dia
+                                        a dia.<br>
+                                        <strong>Profissional (gpt-4.1):</strong> textos mais elaborados, melhores para
+                                        SEO e roteiros.
+                                    </smal>
                                 </div>
                                 <div class="form-group form-group--compact">
                                     <label for="temperature">Criatividade</label>
@@ -205,7 +228,8 @@
                             o <strong>público-alvo</strong>.</li>
                         <li>Opcionalmente, informe <strong>palavras-chave de SEO</strong>, marque se deseja
                             <strong>CTA</strong>, <strong>hashtags</strong> e <strong>sugestões de
-                                imagens/cenas</strong>.</li>
+                                imagens/cenas</strong>.
+                        </li>
                         <li>Clique em <strong>“Gerar conteúdo”</strong> e copie o texto pronto para usar nas suas redes.
                         </li>
                     </ol>
@@ -222,26 +246,58 @@
                         <li>Sugestões de músicas (por estilo)</li>
                     </ul>
 
-                    <h2 class="app-about__subtitle">Possíveis planos (para você vender como serviço)</h2>
-                    <ul class="app-about__list">
-                        <li>
-                            <strong>Plano Starter</strong> – Até 30 conteúdos/mês, foco em 1 rede social. Indicado para
-                            autônomos e pequenos negócios.
-                        </li>
-                        <li>
-                            <strong>Plano Profissional</strong> – Até 80 conteúdos/mês, até 3 redes (Instagram,
-                            Facebook, LinkedIn), sugestões de imagens e vídeos incluídas.
-                        </li>
-                        <li>
-                            <strong>Plano Agência</strong> – Conteúdos ilimitados sob demanda, múltiplos nichos e
-                            clientes. Ideal para social media, agências e consultorias.
-                        </li>
-                    </ul>
                 </section>
             </div>
+
+            <!-- ABA 3: HISTÓRICO -->
+            <div class="app-tab-pane is-hidden" id="tab-historico">
+                <section class="app-panel">
+                    <h1 class="app-panel__title">Histórico</h1>
+                    <div id="historico-lista"></div>
+                </section>
+            </div>
+
+
         </div>
     </main>
+    <!-- Modal: Limite mensal atingido -->
+    <div class="modal-overlay" id="modal-limite">
+        <div class="modal">
+            <h2 class="modal-title">Limite mensal atingido</h2>
 
+            <p class="modal-text">
+                Você atingiu o limite de geração de conteúdos do seu plano neste mês.
+            </p>
+
+            <ul class="modal-list">
+                <li>Aguardar a renovação mensal</li>
+                <li>Ou fazer upgrade do seu plano</li>
+            </ul>
+
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="fecharModalLimite()">
+                    Fechar
+                </button>
+                <a href="https://gerador-conteudo.codertec.com.br/#planos" target="_blank" class="btn-primary">
+                    Ver planos
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.abrirModalLimite = function () {
+            const el = document.getElementById("modal-limite");
+            if (!el) return;
+            el.classList.add("is-visible");
+        };
+
+        window.fecharModalLimite = function () {
+            const el = document.getElementById("modal-limite");
+            if (!el) return;
+            el.classList.remove("is-visible");
+        };
+    </script>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -281,8 +337,14 @@
                             pane.classList.add("is-hidden");
                         }
                     });
+
+                    // 🔥 SE FOR HISTÓRICO, CARREGA DA API
+                    if (targetId === "tab-historico" && typeof carregarHistorico === "function") {
+                        carregarHistorico();
+                    }
                 });
             });
+
 
 
             function atualizarLabelSugestoes() {
@@ -295,6 +357,16 @@
 
             atualizarLabelSugestoes();
             plataformaSelect.addEventListener("change", atualizarLabelSugestoes);
+
+            window.atualizarUsoMensal = function (used, limit) {
+                const usedEl = document.getElementById("usage-used");
+                const limitEl = document.getElementById("usage-limit");
+
+                if (!usedEl || !limitEl) return;
+
+                usedEl.textContent = used;
+                limitEl.textContent = limit;
+            };
 
             form.addEventListener("submit", async function (e) {
                 e.preventDefault();
@@ -351,15 +423,24 @@
                 btnCopiar.disabled = true;
 
                 try {
+                    const token = localStorage.getItem("access_token");
+
                     const response = await fetch("/api/gerar/", {
                         method: "POST",
                         headers: {
-                            "Content-Type": "application/json"
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + token
                         },
                         body: JSON.stringify(payload)
                     });
 
                     if (!response.ok) {
+                        if (response.status === 429) {
+                            statusEl.textContent = "Limite mensal atingido.";
+                            window.abrirModalLimite();
+                            return; // cai no finally e reabilita o botão
+                        }
+
                         const errorData = await response.json().catch(() => ({}));
                         throw new Error(errorData.error || "Erro ao gerar conteúdo");
                     }
@@ -370,6 +451,11 @@
                     resultEl.textContent = texto;
                     statusEl.textContent = "Conteúdo gerado com sucesso.";
                     btnCopiar.disabled = !texto;
+
+                    if (typeof data.used !== "undefined" && typeof data.limit !== "undefined") {
+                        window.atualizarUsoMensal(data.used, data.limit);
+                    }
+
                 } catch (err) {
                     console.error(err);
                     statusEl.textContent = "Erro ao gerar conteúdo. Tente novamente.";
@@ -394,12 +480,243 @@
                     statusEl.textContent = "Não foi possível copiar para a área de transferência.";
                 }
             });
+
+            function abrirModalLimite() {
+                document.getElementById("modal-limite").classList.add("is-visible");
+            }
+
+            function fecharModalLimite() {
+                document.getElementById("modal-limite").classList.remove("is-visible");
+            }
         });
 
-    </script>
-</body>
 
-</html>
+    </script>
+
+    <script>
+        (async function () {
+            const token = localStorage.getItem("access_token");
+
+            // 1. Sem token → login
+            if (!token) {
+                window.location.href = "/login/";
+                return;
+            }
+
+            try {
+                // 2. Validar no backend
+                const response = await fetch("/api/me/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+
+                if (!response.ok) {
+                    localStorage.removeItem("access_token");
+                    localStorage.removeItem("refresh_token");
+                    window.location.href = "/login/";
+                    return;
+                }
+
+                const data = await response.json();
+
+                // ===============================
+                // Inicializar contador mensal
+                // ===============================
+                try {
+                    const usageResp = await fetch("/api/usage/", {
+                        headers: {
+                            "Authorization": "Bearer " + token
+                        }
+                    });
+
+                    if (usageResp.ok) {
+                        const usageData = await usageResp.json();
+
+                        if (window.atualizarUsoMensal) {
+                            window.atualizarUsoMensal(usageData.used, usageData.limit);
+                        }
+                    }
+
+                } catch (e) {
+                    console.warn("Não foi possível carregar uso mensal", e);
+                }
+
+
+                /* =========================
+                   LOGOUT
+                ========================= */
+                const btnLogout = document.getElementById("btn-logout");
+
+                if (btnLogout) {
+                    btnLogout.addEventListener("click", async () => {
+                        const access = localStorage.getItem("access_token");
+                        const refresh = localStorage.getItem("refresh_token");
+
+                        try {
+                            if (access && refresh) {
+                                await fetch("/auth/logout/", {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                        "Authorization": "Bearer " + access
+                                    },
+                                    body: JSON.stringify({ refresh })
+                                });
+                            }
+                        } finally {
+                            localStorage.removeItem("access_token");
+                            localStorage.removeItem("refresh_token");
+                            window.location.href = "/login/";
+                        }
+                    });
+                }
+
+
+                /* =========================
+                  GERADOR DE CONTEÚDO
+               ========================= */
+
+                const navPainel = document.getElementById("nav-painel");
+
+                if (navPainel) {
+                    navPainel.addEventListener("click", () => {
+                        // Abrir aba Gerar conteúdo
+                        document
+                            .querySelector('[data-tab="tab-gerar"]')
+                            ?.click();
+
+                        // Atualizar estado visual do header
+                        document
+                            .querySelectorAll(".app-header__nav-item")
+                            .forEach(el => el.classList.remove("is-active"));
+
+                        navPainel.classList.add("is-active");
+                    });
+                }
+
+
+                /* =========================
+                    HISTÓRICO POR PLANO
+                 ========================= */
+                const navHistorico = document.getElementById("nav-historico");
+
+                if (navHistorico) {
+                    const plano = data.plan;
+
+                    if (plano === "Creator" || plano === "Elite") {
+                        navHistorico.classList.remove("is-disabled");
+
+                        navHistorico.addEventListener("click", () => {
+                            // Abrir aba Histórico
+                            document
+                                .querySelector('[data-tab="tab-historico"]')
+                                ?.click();
+
+                            // Atualizar estado visual do menu
+                            document
+                                .querySelectorAll(".app-header__nav-item")
+                                .forEach(el => el.classList.remove("is-active"));
+
+                            navHistorico.classList.add("is-active");
+
+
+                        });
+
+                    } else {
+                        navHistorico.classList.add("is-disabled");
+                        navHistorico.title = "Disponível a partir do plano Creator";
+                    }
+                }
+
+                async function carregarHistorico() {
+                    const token = localStorage.getItem("access_token");
+                    const container = document.getElementById("historico-lista");
+
+                    if (!container) return;
+
+                    container.innerHTML = "<p>Carregando histórico...</p>";
+
+                    try {
+                        const response = await fetch("/api/historico/", {
+                            headers: {
+                                "Authorization": "Bearer " + token
+                            }
+                        });
+
+                        if (!response.ok) {
+                            container.innerHTML = "<p>Histórico indisponível neste plano.</p>";
+                            return;
+                        }
+
+                        const data = await response.json();
+
+                        if (!data.length) {
+                            container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
+                            return;
+                        }
+
+                        container.innerHTML = data.map(item => `
+            <div class="history-item">
+                <strong>${item.tema}</strong><br>
+                <small>${item.plataforma} • ${item.created_at}</small>
+                <pre>${item.conteudo}</pre>
+            </div>
+        `).join("");
+
+                    } catch (e) {
+                        container.innerHTML = "<p>Erro ao carregar histórico.</p>";
+                    }
+                }
+
+                /* =========================
+                   ASSINATURA INATIVA
+                ========================= */
+                if (!data.subscription_active) {
+                    document.body.innerHTML = `
+                <div style="
+                    min-height:100vh;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-family:system-ui;
+                    background:#f9fafb;
+                ">
+                    <div style="
+                        background:#fff;
+                        padding:2rem;
+                        border-radius:1rem;
+                        border:1px solid #e5e7eb;
+                        max-width:420px;
+                        text-align:center;
+                    ">
+                        <h2 style="margin-bottom:0.5rem;">Assinatura inativa</h2>
+                        <p style="color:#6b7280; margin-bottom:1rem;">
+                            Sua assinatura não está ativa no momento.
+                        </p>
+                        <a href="/" style="
+                            display:inline-block;
+                            padding:0.5rem 1rem;
+                            border-radius:999px;
+                            background:#2563eb;
+                            color:white;
+                            text-decoration:none;
+                            font-weight:600;
+                        ">
+                            Ver planos
+                        </a>
+                    </div>
+                </div>
+            `;
+                }
+
+            } catch (e) {
+                console.error(e);
+                window.location.href = "/login/";
+            }
+        })();
+    </script>
 
 </body>
 

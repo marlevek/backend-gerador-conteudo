@@ -1,0 +1,83 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Criar conta — Gerador de Conteúdo com IA</title>
+    <link rel="stylesheet" href="{% static 'css/register.css' %}">
+</head>
+<body class="register-body">
+
+    <div class="register-card">
+        <h1 class="register-title">Criar conta</h1>
+        <p class="register-subtitle">Use o email do pagamento</p>
+
+        <form id="register-form" class="register-form">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" required placeholder="seu@email.com">
+            </div>
+
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="password" required>
+            </div>
+
+            <div class="form-group">
+                <label>Confirmar senha</label>
+                <input type="password" id="password2" required>
+            </div>
+
+            <button type="submit" class="btn-primary">Criar conta</button>
+
+            <div class="register-status" id="register-status"></div>
+
+            <p class="register-footer">
+                Já tem conta?
+                <a href="/login/">Entrar</a>
+            </p>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("register-form").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const password2 = document.getElementById('password2').value;
+            const statusEl = document.getElementById("register-status");
+
+            if (password !== password2) {
+                statusEl.textContent = "As senhas não coincidem";
+                return;
+            }
+
+            statusEl.textContent = "Criando conta...";
+
+            try {
+                const response = await fetch("/auth/register/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Erro ao criar conta");
+                }
+
+                statusEl.style.color = "green";
+                statusEl.textContent = "Conta criada com sucesso! Redirecionando...";
+
+                setTimeout(() => {
+                    window.location.href = "/login/";
+                }, 1200);
+
+            } catch (err) {
+                statusEl.textContent = err.message;
+            }
+        });
+    </script>
+
+</body>
+</html>

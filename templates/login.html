@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Login — Gerador de Conteúdo com IA</title>
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body class="login-body">
+
+    <div class="login-card">
+        <h1 class="login-title">Acessar painel</h1>
+        <p class="login-subtitle">Entre com seu email e senha</p>
+
+        <form id="login-form" class="login-form">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required placeholder="seu@email.com">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" required placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn-primary">Entrar</button>
+
+            <div class="login-status" id="login-status"></div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("login-form").addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const email = document.getElementById("email").value.trim();
+            const password = document.getElementById("password").value.trim();
+            const statusEl = document.getElementById("login-status");
+
+            statusEl.textContent = "Entrando...";
+
+            try {
+                const response = await fetch("/auth/login/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        username: email,
+                        password: password
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Email ou senha inválidos");
+                }
+
+                const data = await response.json();
+
+                localStorage.setItem("access_token", data.access);
+                localStorage.setItem("refresh_token", data.refresh);
+
+                window.location.href = "/";
+            } catch (err) {
+                statusEl.textContent = err.message;
+            }
+        });
+    </script>
+
+</body>
+</html>
