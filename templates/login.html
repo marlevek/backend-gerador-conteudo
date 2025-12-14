@@ -1,11 +1,13 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <title>Login — Gerador de Conteúdo com IA</title>
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
 </head>
+
 <body class="login-body">
 
     <div class="login-card">
@@ -24,6 +26,13 @@
             </div>
 
             <button type="submit" class="btn-primary">Entrar</button>
+
+            <div class="login-footer">
+                <p>
+                    É novo por aqui?
+                    <a href="/register/">Crie sua conta</a>
+                </p>
+            </div>
 
             <div class="login-status" id="login-status"></div>
         </form>
@@ -68,4 +77,5 @@
     </script>
 
 </body>
+
 </html>

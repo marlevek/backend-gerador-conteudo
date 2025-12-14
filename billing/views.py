@@ -10,6 +10,8 @@ from billing.utils import get_or_create_monthly_usage
 import json 
 from django.http import HttpResponse 
 from django.utils.dateparse import parse_date 
+from django.utils.timezone import now
+from datetime import timedelta
 
 
 @api_view(['POST'])
@@ -29,13 +31,38 @@ def webhook_pagamento(request):
     plan = Plan.objects.filter(external_reference=plan_id).first()
     if not plan:
         return Response({"error": "Plano não encontrado"}, status=404)
+    
+    # Desmarcar para produção:
+    if status not in ['approved', 'paid', 'active']:
+        return Response({'message': "Pagamento não aprovado"}, status=200)
 
-    sub, _ = Subscription.objects.get_or_create(user=user, plan=plan)
-
-    if status in ["approved", "paid", "active"]:
+    # Deixar comentado para produção:
+    '''if status in ['approved', 'paid', 'active', 'pending']:
         sub.activate()
     else:
-        sub.deactivate(status)
+        sub.deactivated(status)'''
+        
+
+    # Criar ou atualizar assinatura
+    sub, created = Subscription.objects.get_or_create(
+    user=user,
+    defaults={
+        "plan": plan,
+        "active": True,
+        "start_date": now(),
+        "end_date": now() + timedelta(days=30),
+    }
+)
+    # Se já existia, atualiza plano
+    if not created:
+        sub.plan = plan
+        sub.active = True
+        sub.start_date = now()
+        sub.end_date = now() + timedelta(days=30)
+        sub.save()
+    
+    # Garantir Monthly usage
+    get_or_create_monthly_usage(user)
 
     return Response({"message": "OK"}, status=200)
 

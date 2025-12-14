@@ -4,4 +4,5 @@ from .views import webhook_pagamento
 
 urlpatterns = [
     path('webhook/', webhook_pagamento),
+
 ]

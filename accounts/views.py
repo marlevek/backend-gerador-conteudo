@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
+from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -7,27 +8,47 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from rest_framework.views import APIView
+from billing.models import Plan, Subscription
+from django.utils.timezone import now
+from datetime import timedelta
+
 
 
 class RegisterView(generics.CreateAPIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny]   
 
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
+        
+        if not email or not password:
+            return Response({'error': 'Email e senha são obrigatórios'}, status=400)
 
         if User.objects.filter(username=email).exists():
             return Response({"error": "Usuário já existe"}, status=400)
 
+        # 1. Criar usuário
         user = User.objects.create_user(username=email, email=email, password=password)
-
+        
+        # 2. Associar plano BASIC automaticamente
+        basic_plan = Plan.objects.get(name = 'Basic')
+        
+        Subscription.objects.create(
+            user = user,
+            plan = basic_plan,
+            active = True,
+            start_date = now(),
+            end_date = now() + timedelta(days=30),
+        )
+        
+        # 3. Gerar tokens JWT
         refresh = RefreshToken.for_user(user)
 
         return Response({
             "refresh": str(refresh),
             "access": str(refresh.access_token),
         })
-
+        
 
 class LoginView(APIView):
     permission_classes = [AllowAny]

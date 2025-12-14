@@ -15,6 +15,7 @@
         <div class="app-header__logo">
             <span class="app-header__logo-icon">IA</span>
             <span class="app-header__logo-text">Gerador de Conteúdo</span>
+            <span class="plan-badge" id="plan-badge"></span>
         </div>
         <nav class="app-header__nav">
             <span class="app-header__nav-item is-active" id="nav-painel">Painel</span>
@@ -31,7 +32,7 @@
                     ✍️ Gerar conteúdo
                 </button>
                 <button class="app-tabs__button" data-tab="tab-historico">
-                    📜 Histórico
+                    📜 Histórico de conteúdos
                 </button>
                 <button class="app-tabs__button" data-tab="tab-sobre">
                     ℹ️ Sobre o app
@@ -202,8 +203,33 @@
             <!-- ABA 2: HISTÓRICO -->
             <div class="app-tab-pane is-hidden" id="tab-historico">
                 <section class="app-panel">
-                    <h1 class="app-panel__title">Histórico</h1>
-                    <div id="historico-lista"></div>
+                    <h1 class="app-panel__title">Histórico de conteúdos</h1>
+
+                    <!-- Filtro do histórico -->
+                    <div class="history-filters">
+                        <select id="filtro-plataforma">
+                            <option value="">Todas as plataformas</option>
+                            <option>Instagram (feed)</option>
+                            <option>Instagram Reels</option>
+                            <option>Facebook (feed)</option>
+                            <option>LinkedIn</option>
+                            <option>Blog</option>
+                            <option>YouTube Shorts</option>
+                            <option>TikTok (vídeo curto)</option>
+                        </select>
+                    </div>
+
+                    <div id="historico-lista" class="history-list"></div>
+                    <div class="history-actions-global">
+                        <button id="btn-export-csv" class="btn-export" onclick="exportarCSV()">
+                            Exportar CSV
+                        </button>
+
+                        <button id="btn-export-pdf" class="btn-export" onclick="exportarPDF()">
+                            Exportar PDF
+                        </button>
+                    </div>
+
                 </section>
             </div>
 
@@ -299,53 +325,92 @@
         };
     </script>
 
-    <script>
+ <script>
         /* =====================================================
-           FUNÇÕES GLOBAIS
+           FUNÇÕES AUXILIARES
         ===================================================== */
+
+        function abrirAba(tabId) {
+            document.querySelectorAll(".app-tabs__button").forEach(btn => {
+                btn.classList.toggle("is-active", btn.dataset.tab === tabId);
+            });
+
+            document.querySelectorAll(".app-tab-pane").forEach(pane => {
+                pane.classList.toggle("is-hidden", pane.id !== tabId);
+            });
+        }
+
+        function ativarMenu(el) {
+            document.querySelectorAll(".app-header__nav-item")
+                .forEach(i => i.classList.remove("is-active"));
+            el.classList.add("is-active");
+        }
 
         window.atualizarUsoMensal = function (used, limit) {
             const usedEl = document.getElementById("usage-used");
             const limitEl = document.getElementById("usage-limit");
-
             if (!usedEl || !limitEl) return;
-
             usedEl.textContent = used;
             limitEl.textContent = limit;
         };
 
+        window.toggleConteudo = function (id) {
+            const el = document.getElementById("conteudo-" + id);
+            if (el) el.classList.toggle("expanded");
+        };
+
+        window.copiarHistorico = function (id) {
+            const el = document.getElementById("conteudo-" + id);
+            if (el) navigator.clipboard.writeText(el.textContent);
+        };
+
+        /* =====================================================
+           HISTÓRICO
+        ===================================================== */
+
         window.carregarHistorico = async function () {
             const token = localStorage.getItem("access_token");
             const container = document.getElementById("historico-lista");
-
             if (!container) return;
 
             container.innerHTML = "<p>Carregando histórico...</p>";
 
             try {
                 const response = await fetch("/api/historico/", {
-                    headers: {
-                        "Authorization": "Bearer " + token
-                    }
+                    headers: { "Authorization": "Bearer " + token }
                 });
 
                 if (!response.ok) {
-                    container.innerHTML = "<p>Histórico indisponível neste plano.</p>";
+                    container.innerHTML = "<p>Histórico indisponível.</p>";
                     return;
                 }
 
                 const data = await response.json();
 
-                if (!data.length) {
+                if (!Array.isArray(data) || data.length === 0) {
                     container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
                     return;
                 }
 
-                container.innerHTML = data.map(item => `
+                container.innerHTML = data.map((item, index) => `
             <div class="history-item">
-                <strong>${item.tema}</strong><br>
-                <small>${item.plataforma} • ${item.created_at}</small>
-                <pre>${item.conteudo}</pre>
+                <div class="history-meta">
+                    <strong>${item.tema}</strong><br>
+                    <small>${item.plataforma} • ${item.created_at}</small>
+                </div>
+
+                <pre id="conteudo-${index}" class="history-content">
+${item.conteudo}
+                </pre>
+
+                <div class="history-actions">
+                    <button onclick="toggleConteudo(${index})">
+                        Ver mais / Ver menos
+                    </button>
+                    <button onclick="copiarHistorico(${index})">
+                        Copiar
+                    </button>
+                </div>
             </div>
         `).join("");
 
@@ -361,10 +426,6 @@
         document.addEventListener("DOMContentLoaded", async function () {
 
             const token = localStorage.getItem("access_token");
-
-            /* =========================
-               AUTENTICAÇÃO
-            ========================= */
             if (!token) {
                 window.location.href = "/login/";
                 return;
@@ -372,11 +433,12 @@
 
             let userData = null;
 
+            /* =========================
+               PERFIL / ASSINATURA
+            ========================= */
             try {
                 const response = await fetch("/api/me/", {
-                    headers: {
-                        "Authorization": "Bearer " + token
-                    }
+                    headers: { "Authorization": "Bearer " + token }
                 });
 
                 if (!response.ok) {
@@ -387,32 +449,29 @@
 
                 userData = await response.json();
 
-            } catch (e) {
+            } catch {
                 window.location.href = "/login/";
                 return;
             }
 
             /* =========================
-               CONTADOR DE USO MENSAL
+               USO MENSAL
             ========================= */
             try {
                 const usageResp = await fetch("/api/usage/", {
-                    headers: {
-                        "Authorization": "Bearer " + token
-                    }
+                    headers: { "Authorization": "Bearer " + token }
                 });
 
                 if (usageResp.ok) {
                     const usageData = await usageResp.json();
                     atualizarUsoMensal(usageData.used, usageData.limit);
                 }
-            } catch (e) { }
+            } catch { }
 
             /* =========================
                LOGOUT
             ========================= */
             const btnLogout = document.getElementById("btn-logout");
-
             if (btnLogout) {
                 btnLogout.addEventListener("click", async () => {
                     try {
@@ -426,35 +485,12 @@
                                 refresh: localStorage.getItem("refresh_token")
                             })
                         });
-                    } catch (e) { }
+                    } catch { }
 
                     localStorage.clear();
                     window.location.href = "/login/";
                 });
             }
-
-            /* =========================
-               TABS INTERNAS
-            ========================= */
-            const tabButtons = document.querySelectorAll(".app-tabs__button");
-            const tabPanes = document.querySelectorAll(".app-tab-pane");
-
-            tabButtons.forEach(btn => {
-                btn.addEventListener("click", () => {
-                    const targetId = btn.dataset.tab;
-
-                    tabButtons.forEach(b => b.classList.remove("is-active"));
-                    btn.classList.add("is-active");
-
-                    tabPanes.forEach(pane => {
-                        pane.classList.toggle("is-hidden", pane.id !== targetId);
-                    });
-
-                    if (targetId === "tab-historico") {
-                        carregarHistorico();
-                    }
-                });
-            });
 
             /* =========================
                MENU SUPERIOR
@@ -464,7 +500,7 @@
 
             if (navPainel) {
                 navPainel.addEventListener("click", () => {
-                    document.querySelector('[data-tab="tab-gerar"]')?.click();
+                    abrirAba("tab-gerar");
                     ativarMenu(navPainel);
                 });
             }
@@ -476,8 +512,15 @@
                     navHistorico.style.cursor = "pointer";
 
                     navHistorico.addEventListener("click", () => {
-                        document.querySelector('[data-tab="tab-historico"]')?.click();
+
+                        // mostra aba
+                        abrirAba("tab-historico");
                         ativarMenu(navHistorico);
+
+                        // espera o DOM ficar visível e carrega
+                        requestAnimationFrame(() => {
+                            carregarHistorico();
+                        });
                     });
 
                 } else {
@@ -486,88 +529,72 @@
                 }
             }
 
-            function ativarMenu(el) {
-                document.querySelectorAll(".app-header__nav-item")
-                    .forEach(i => i.classList.remove("is-active"));
-                el.classList.add("is-active");
-            }
+            /* =========================
+               ABAS INTERNAS
+            ========================= */
+            document.querySelectorAll(".app-tabs__button").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    abrirAba(btn.dataset.tab);
+                    if (btn.dataset.tab === "tab-historico") {
+                        requestAnimationFrame(() => {
+                            carregarHistorico();
+                        });
+                    }
+                });
+            });
 
             /* =========================
-               FORMULÁRIO DE GERAÇÃO
+               EXPORTAÇÃO (ELITE)
             ========================= */
-            const form = document.getElementById("form-briefing");
-            const statusEl = document.getElementById("form-status");
-            const resultEl = document.getElementById("resultado");
-            const btnGerar = document.getElementById("btn-gerar");
-            const btnCopiar = document.getElementById("btn-copiar");
+            window.exportarCSV = async function () {
+                const response = await fetch("/api/historico/export/csv/", {
+                    headers: { "Authorization": "Bearer " + token }
+                });
 
-            if (!form) return;
-
-            form.addEventListener("submit", async function (e) {
-                e.preventDefault();
-
-                statusEl.textContent = "";
-                btnGerar.disabled = true;
-                btnCopiar.disabled = true;
-                resultEl.textContent = "Gerando conteúdo com IA...";
-
-                const payload = {
-                    tema: document.getElementById("tema").value,
-                    plataforma: document.getElementById("plataforma").value,
-                    tom: document.getElementById("tom").value,
-                    tamanho: document.getElementById("tamanho").value,
-                    publico: document.getElementById("publico").value,
-                    palavras_chave: document.getElementById("palavras_chave").value,
-                    nicho: document.getElementById("nicho").value,
-                    cta: document.getElementById("cta").checked,
-                    hashtags: document.getElementById("hashtags").checked,
-                    sugestoes_imagens: document.getElementById("sugestoes_imagens").checked,
-                    modelo: document.getElementById("modelo").value,
-                    temperature: parseFloat(document.getElementById("temperature").value || "0.7")
-                };
-
-                try {
-                    const response = await fetch("/api/gerar/", {
-                        method: "POST",
-                        headers: {
-                            "Authorization": "Bearer " + token,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.status === 429) {
-                        abrirModalLimite();
-                        resultEl.textContent = "";
-                        return;
-                    }
-
-                    if (!response.ok) throw new Error();
-
-                    const data = await response.json();
-
-                    resultEl.textContent = data.resultado || "";
-                    btnCopiar.disabled = false;
-                    statusEl.textContent = "Conteúdo gerado com sucesso.";
-
-                    atualizarUsoMensal(data.used, data.limit);
-
-                } catch (e) {
-                    resultEl.textContent = "";
-                    statusEl.textContent = "Erro ao gerar conteúdo.";
-                } finally {
-                    btnGerar.disabled = false;
+                if (!response.ok) {
+                    alert("Erro ao exportar CSV");
+                    return;
                 }
-            });
 
-            btnCopiar.addEventListener("click", async () => {
-                await navigator.clipboard.writeText(resultEl.textContent);
-                btnCopiar.textContent = "Copiado!";
-                setTimeout(() => btnCopiar.textContent = "Copiar texto", 2000);
-            });
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "historico_conteudos.csv";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                window.URL.revokeObjectURL(url);
+            };
+
+            window.exportarPDF = async function () {
+                const response = await fetch("/api/historico/export/pdf/", {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+
+                if (!response.ok) {
+                    alert("Erro ao exportar PDF");
+                    return;
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "historico_conteudos.pdf";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                window.URL.revokeObjectURL(url);
+            };
 
         });
     </script>
+
 
 </body>
 

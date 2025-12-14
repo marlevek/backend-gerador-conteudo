@@ -10,7 +10,13 @@ from .llm_utils import gerar_conteudo
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
+from django.utils.timezone import now
 from datetime import timedelta
+import csv
+from django.http import HttpResponse
+from billing.models import ContentHistory
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 import openai
 
 
@@ -21,7 +27,7 @@ class GerarConteudoView(APIView):
         # Verifica assinatura ativa
         # assinatura = Subscription.objects.filter(user=request.user, #active=True).first()
         # if not assinatura:
-            # return Response({"error": "Assinatura inativa"}, status=403)
+        # return Response({"error": "Assinatura inativa"}, status=403)
 
         user = request.user
 
@@ -104,23 +110,28 @@ class GerarConteudoView(APIView):
 @permission_classes([IsAuthenticated])
 def me(request):
     user = request.user
-    
+
     subscription = Subscription.objects.filter(
-        user = user,
-        active = True
-    ).first()
-    
+        user=user,
+        active=True
+    ).select_related('plan').first()
+
+    # Garante que o monthly sempre existe
+    usage = get_or_create_monthly_usage(user)
+
     plan_name = subscription.plan.name if subscription and subscription.plan else None
     capabilities = PLAN_CAPABILITIES.get(plan_name, {})
-    
+
     return Response({
         'email': user.email,
         'is_authenticated': True,
         'subscription_active': bool(subscription),
         'plan': plan_name,
         'capabilities': capabilities,
+        'used': usage.used_posts,
+        'limit': subscription.plan.max_posts if subscription else 0,
     })
-    
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
@@ -145,12 +156,13 @@ def usage_me(request):
         "limit": subscription.plan.max_posts,
         "used": usage.used_posts,
     })
-    
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def historico(request):
     user = request.user
+    plataforma = request.GET.get('plataforma')
 
     subscription = Subscription.objects.filter(
         user=user,
@@ -163,6 +175,11 @@ def historico(request):
     plan = subscription.plan
 
     qs = ContentHistory.objects.filter(user=user)
+    
+    # Filtro por plataforma
+    if plataforma:
+        qs = qs.filter(plataforma=plataforma)
+
 
     # Regras por plano
     if plan.name == "Creator":
@@ -177,6 +194,12 @@ def historico(request):
 
     # Elite = ilimitado
 
+    # Filtro por plataforma (opcional)
+    plataforma = request.GET.get("plataforma")
+    if plataforma:
+        qs = qs.filter(plataforma=plataforma)
+
+   
     data = [
         {
             "id": h.id,
@@ -184,8 +207,135 @@ def historico(request):
             "plataforma": h.plataforma,
             "conteudo": h.conteudo,
             "created_at": h.created_at.strftime("%d/%m/%Y %H:%M"),
+            "plan": h.plan.name if h.plan else "",
         }
-        for h in qs[:100]
+        for h in qs.order_by('-created_at')[:100]
     ]
 
     return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def export_historico_csv(request):
+    user = request.user
+
+    subscription = Subscription.objects.filter(
+        user=user, active=True
+    ).select_related("plan").first()
+
+    if not subscription or subscription.plan.name != "Elite":
+        return HttpResponse("Plano não permite exportação", status=403)
+
+    queryset = ContentHistory.objects.filter(user=user)
+
+    # Creator = últimos 30 dias | Elite = ilimitado
+    if subscription.plan.name == "Creator":
+        queryset = queryset.filter(
+            created_at__gte=now() - timedelta(days=30)
+        )
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = (
+        'attachment; filename="historico_conteudos.csv"'
+    )
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Data",
+        "Tema",
+        "Plataforma",
+        "Tom",
+        "Nicho",
+        "Conteúdo",
+        "Plano",
+    ])
+
+    for item in queryset:
+        writer.writerow([
+            item.created_at.strftime("%d/%m/%Y %H:%M"),
+            item.tema,
+            item.plataforma,
+            item.tom,
+            item.nicho,
+            item.conteudo,
+            item.plan.name if item.plan else "",
+        ])
+
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def export_historico_pdf(request):
+    user = request.user
+
+    # Verifica assinatura ativa
+    subscription = Subscription.objects.filter(
+        user=user,
+        active=True
+    ).select_related("plan").first()
+
+    if not subscription or subscription.plan.name != "Elite":
+        return HttpResponse(
+            "Plano não permite exportação em PDF",
+            status=403
+        )
+
+    queryset = ContentHistory.objects.filter(user=user)
+
+    # Creator = 30 dias | Elite = ilimitado
+    if subscription.plan.name == "Creator":
+        queryset = queryset.filter(
+            created_at__gte=now() - timedelta(days=30)
+        )
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        'attachment; filename="historico_conteudos.pdf"'
+    )
+
+    p = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+
+    y = height - 40
+
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(40, y, "Histórico de Conteúdos Gerados")
+    y -= 30
+
+    p.setFont("Helvetica", 9)
+
+    for item in queryset.order_by("-created_at"):
+        if y < 80:
+            p.showPage()
+            p.setFont("Helvetica", 9)
+            y = height - 40
+
+        p.drawString(
+            40, y,
+            f"{item.created_at.strftime('%d/%m/%Y %H:%M')} | {item.plataforma}"
+        )
+        y -= 14
+
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(40, y, f"Tema: {item.tema}")
+        y -= 14
+
+        p.setFont("Helvetica", 9)
+
+        texto = item.conteudo.split("\n")
+        for linha in texto:
+            if y < 60:
+                p.showPage()
+                p.setFont("Helvetica", 9)
+                y = height - 40
+            p.drawString(50, y, linha[:110])
+            y -= 12
+
+        y -= 20
+
+    p.showPage()
+    p.save()
+
+    return response
