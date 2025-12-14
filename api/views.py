@@ -269,6 +269,13 @@ def export_historico_csv(request):
 @permission_classes([IsAuthenticated])
 def export_historico_pdf(request):
     user = request.user
+    
+    content_id = request.GET.get("id")
+
+    qs = ContentHistory.objects.filter(user=request.user)
+
+    if content_id:
+        qs = qs.filter(id=content_id)
 
     # Verifica assinatura ativa
     subscription = Subscription.objects.filter(
@@ -282,7 +289,7 @@ def export_historico_pdf(request):
             status=403
         )
 
-    queryset = ContentHistory.objects.filter(user=user)
+    queryset = qs
 
     # Creator = 30 dias | Elite = ilimitado
     if subscription.plan.name == "Creator":

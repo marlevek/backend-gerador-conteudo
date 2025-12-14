@@ -224,10 +224,10 @@
                         <button id="btn-export-csv" class="btn-export" onclick="exportarCSV()">
                             Exportar CSV
                         </button>
-
                         <button id="btn-export-pdf" class="btn-export" onclick="exportarPDF()">
                             Exportar PDF
                         </button>
+
                     </div>
 
                 </section>
@@ -311,6 +311,13 @@
         </div>
     </div>
 
+
+    <script>
+        window.URL_EXPORT_PDF = "{% url 'export_historico_pdf' %}";
+    </script>
+
+
+
     <script>
         window.abrirModalLimite = function () {
             const el = document.getElementById("modal-limite");
@@ -325,10 +332,49 @@
         };
     </script>
 
- <script>
+    <script>
+
         /* =====================================================
            FUNÇÕES AUXILIARES
         ===================================================== */
+
+        window.exportarPDFItem = async function (id) {
+            const token = localStorage.getItem("access_token");
+            if (!token) {
+                alert("Sessão expirada. Faça login novamente.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${window.URL_EXPORT_PDF}?id=${id}`, {
+                    headers: {
+                        "Authorization": "Bearer " + token
+                    }
+                });
+
+            if (!response.ok) {
+                alert("Erro ao gerar PDF.");
+                return;
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `conteudo_${id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            window.URL.revokeObjectURL(url);
+
+        } catch (err) {
+            console.error(err);
+            alert("Erro inesperado ao exportar PDF.");
+        }
+        };
+
 
         function abrirAba(tabId) {
             document.querySelectorAll(".app-tabs__button").forEach(btn => {
@@ -392,27 +438,36 @@
                     return;
                 }
 
-                container.innerHTML = data.map((item, index) => `
-            <div class="history-item">
-                <div class="history-meta">
-                    <strong>${item.tema}</strong><br>
-                    <small>${item.plataforma} • ${item.created_at}</small>
-                </div>
+                container.innerHTML = data.map((item, index) => {
 
-                <pre id="conteudo-${index}" class="history-content">
-${item.conteudo}
-                </pre>
+                    console.log("ITEM DO HISTÓRICO:", item);
 
-                <div class="history-actions">
-                    <button onclick="toggleConteudo(${index})">
-                        Ver mais / Ver menos
-                    </button>
-                    <button onclick="copiarHistorico(${index})">
-                        Copiar
-                    </button>
-                </div>
+                    return `
+        <div class="history-item">
+            <div class="history-meta">
+                <strong>${item.tema}</strong><br>
+                <small>${item.plataforma} • ${item.created_at}</small>
             </div>
-        `).join("");
+
+            <pre id="conteudo-${index}" class="history-content">
+${item.conteudo}
+            </pre>
+
+            <div class="history-actions">
+                <button onclick="toggleConteudo(${index})">
+                    Ver mais / Ver menos
+                </button>
+                <button onclick="copiarHistorico(${index})">
+                    Copiar
+                </button>
+                <button onclick="exportarPDFItem(${item.id})">
+                    PDF
+                </button>
+            </div>
+        </div>
+    `;
+                }).join("");
+
 
             } catch (e) {
                 container.innerHTML = "<p>Erro ao carregar histórico.</p>";
@@ -570,7 +625,7 @@ ${item.conteudo}
             };
 
             window.exportarPDF = async function () {
-                const response = await fetch("/api/historico/export/pdf/", {
+                const response = await fetch(`/api/historico/export/pdf/?id=${id}`, {
                     headers: { "Authorization": "Bearer " + token }
                 });
 
@@ -594,7 +649,6 @@ ${item.conteudo}
 
         });
     </script>
-
 
 </body>
 
