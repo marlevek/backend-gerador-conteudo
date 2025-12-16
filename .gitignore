@@ -28,15 +28,6 @@ env/
 *.swp
 *.swo
 
-# ==========================================
-# Mídias e arquivos gerados
-# ==========================================
-
-media/
-staticfiles/
-static/
-build/
-dist/
 
 # ==========================================
 # Arquivos sensíveis
