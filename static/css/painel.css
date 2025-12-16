@@ -707,3 +707,39 @@
         font-size: 0.83rem;
     }
 }
+
+.trial-banner {
+    margin-bottom: 24px;
+    width: 100%;
+  
+}
+
+.trial-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.trial-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: #111827;
+}
+
+.trial-text span {
+    font-size: 0.95rem;
+    color: #4b5563;
+}
+
+.trial-action a {
+    white-space: nowrap;
+}

@@ -44,13 +44,13 @@ class GerarConteudoView(APIView):
             )
 
         plan = subscription.plan
-        
+
         PLATAFORMAS_VIDEO = [
             'Instagram Reels',
             'Youtube Short',
             'Tiktok (video curto)',
         ]
-        
+
         # Bloqueio de vídeo curto para plano Basic
         if plan.name == 'Basic' and data.get('plataforma') in PLATAFORMAS_VIDEO:
             return Response(
@@ -130,7 +130,7 @@ def me(request):
 
     subscription = Subscription.objects.filter(
         user=user,
-        active=True
+        status__in=['trial', 'active']
     ).select_related('plan').first()
 
     # Garante que o monthly sempre existe
@@ -142,10 +142,15 @@ def me(request):
     return Response({
         'email': user.email,
         'is_authenticated': True,
-        'subscription_active': bool(subscription),
+        'subscription_active': subscription.is_active if subscription else False,
+        
+        # NOVOS CAMPOS (UX do trial)
+        'subscription_status': subscription.status if subscription else None,
+        'trial_ends_at': subscription.end_date if subscription else None,
+
         'plan': plan_name,
         'capabilities': capabilities,
-        'used': usage.used_posts,
+        'used': usage.used_posts if subscription else 0,
         'limit': subscription.plan.max_posts if subscription else 0,
     })
 
@@ -157,7 +162,7 @@ def usage_me(request):
 
     subscription = Subscription.objects.filter(
         user=user,
-        active=True
+        status__in=['trial', 'active']
     ).select_related("plan").first()
 
     if not subscription:
@@ -192,11 +197,10 @@ def historico(request):
     plan = subscription.plan
 
     qs = ContentHistory.objects.filter(user=user)
-    
+
     # Filtro por plataforma
     if plataforma:
         qs = qs.filter(plataforma=plataforma)
-
 
     # Regras por plano
     if plan.name == "Creator":
@@ -216,7 +220,6 @@ def historico(request):
     if plataforma:
         qs = qs.filter(plataforma=plataforma)
 
-   
     data = [
         {
             "id": h.id,
@@ -286,7 +289,7 @@ def export_historico_csv(request):
 @permission_classes([IsAuthenticated])
 def export_historico_pdf(request):
     user = request.user
-    
+
     content_id = request.GET.get("id")
 
     qs = ContentHistory.objects.filter(user=request.user)

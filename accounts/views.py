@@ -36,9 +36,10 @@ class RegisterView(generics.CreateAPIView):
         Subscription.objects.create(
             user = user,
             plan = basic_plan,
-            active = True,
+            status = 'trial',
+            active = False,
             start_date = now(),
-            end_date = now() + timedelta(days=30),
+            end_date = now() + timedelta(days=7),
         )
         
         # 3. Gerar tokens JWT

@@ -26,6 +26,7 @@
     </header>
 
     <main class="app-main-wrapper">
+        <div id="trial-banner-slot"></div>
         <div class="app-tabs">
             <div class="app-tabs__nav">
                 <button class="app-tabs__button is-active" data-tab="tab-gerar">
@@ -332,6 +333,51 @@
 
     <script>
 
+        function calcularDiasRestantes(dataFim) {
+            if (!dataFim) return 0;
+
+            const agora = new Date();
+            const fim = new Date(dataFim);
+
+            const diffMs = fim - agora;
+            return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        }
+
+        function mostrarBannerTrial(userData) {
+            // só mostra banner se for trial E plano ainda for Basic
+            if (
+                userData.subscription_status !== "trial" ||
+                userData.plan !== "Basic"
+            ) {
+                return;
+            }
+
+            const slot = document.getElementById("trial-banner-slot");
+            if (!slot) return;
+
+            const dias = calcularDiasRestantes(userData.trial_ends_at);
+
+            slot.innerHTML = `
+        <div class="trial-banner">
+            <div class="trial-card">
+                <div class="trial-text">
+                    <strong>Período de teste ativo</strong>
+                    <span>
+                        Você tem <strong>${dias} dias</strong> para testar todas as funções do plano
+                        <strong>${userData.plan}</strong>.
+                    </span>
+                </div>
+
+                <a href="https://gerador-conteudo.codertec.com.br/#planos"
+                   target="_blank"
+                   class="btn-primary">
+                    Fazer upgrade
+                </a>
+            </div>
+        </div>
+    `;
+        }
+
         /* =====================================================
            FUNÇÕES AUXILIARES
         ===================================================== */
@@ -505,6 +551,8 @@ ${item.conteudo}
 
                 userData = await response.json();
                 window.userPlan = userData.plan;
+                mostrarBannerTrial(userData);
+
 
                 /* =========================
                 ESCONDER EXPORTAÇÕES (PLANO BASIC)

@@ -43,9 +43,22 @@ class Plan(models.Model):
 
 
 class Subscription(models.Model):
+    STATUS_CHOICES = (
+        ('trial', 'Trial'),
+        ('active', 'Ativa'),
+        ('past_due', 'Pagamento atrasado'),
+        ('canceled', 'Cancelada'),
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     plan = models.ForeignKey(
         Plan, on_delete=models.SET_NULL, null=True, blank=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='trial',
+    )
+
     active = models.BooleanField(default=False)
     start_date = models.DateTimeField(auto_now_add=True)
     end_date = models.DateTimeField(null=True, blank=True)
@@ -63,18 +76,31 @@ class Subscription(models.Model):
     )
 
     def activate(self):
+        self.status = 'active'
         self.active = True
-        self.end_date = datetime.now() + timedelta(days=30)
+        self.end_date = timezone.now() + timedelta(days=30)
         self.last_payment_status = "paid"
         self.save()
 
     def deactivate(self, status):
+        self.status = 'canceled'
         self.active = False
         self.last_payment_status = status
         self.save()
+        
+    @property
+    def is_trial(self):
+        return self.status == "trial"
+
+
+    @property
+    def is_active(self):
+        return self.status == "active" and self.end_date and self.end_date > timezone.now()
+
 
     def __str__(self):
         return f"{self.user} - {self.plan} - Ativa: {self.active}"
+
 
 
 class MonthlyUsage(models.Model):
