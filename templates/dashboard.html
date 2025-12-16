@@ -199,7 +199,6 @@
                 </div>
             </div>
 
-
             <!-- ABA 2: HISTÓRICO -->
             <div class="app-tab-pane is-hidden" id="tab-historico">
                 <section class="app-panel">
@@ -317,7 +316,6 @@
     </script>
 
 
-
     <script>
         window.abrirModalLimite = function () {
             const el = document.getElementById("modal-limite");
@@ -352,27 +350,27 @@
                     }
                 });
 
-            if (!response.ok) {
-                alert("Erro ao gerar PDF.");
-                return;
+                if (!response.ok) {
+                    alert("Erro ao gerar PDF.");
+                    return;
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `conteudo_${id}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+
+                window.URL.revokeObjectURL(url);
+
+            } catch (err) {
+                console.error(err);
+                alert("Erro inesperado ao exportar PDF.");
             }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `conteudo_${id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-
-            window.URL.revokeObjectURL(url);
-
-        } catch (err) {
-            console.error(err);
-            alert("Erro inesperado ao exportar PDF.");
-        }
         };
 
 
@@ -415,6 +413,9 @@
         ===================================================== */
 
         window.carregarHistorico = async function () {
+
+            if (window.userPlan === "Basic") return;
+
             const token = localStorage.getItem("access_token");
             const container = document.getElementById("historico-lista");
             if (!container) return;
@@ -503,6 +504,58 @@ ${item.conteudo}
                 }
 
                 userData = await response.json();
+                window.userPlan = userData.plan;
+
+                /* =========================
+                ESCONDER EXPORTAÇÕES (PLANO BASIC)
+                ========================= */
+
+                if (window.userPlan === "Basic") {
+                    const exportBox = document.querySelector(".history-actions-global");
+                    if (exportBox) {
+                        exportBox.style.display = "none";
+                    }
+                }
+
+
+                /* =========================
+                HISTÓRICO — TEXTO PLANO BASIC
+                ========================= */
+
+                if (userData.plan === "Basic") {
+                    const container = document.getElementById("historico-lista");
+                    if (container) {
+                        container.innerHTML = `
+            <div class="history-locked">
+                <p>
+                    Histórico disponível apenas a partir do
+                    <strong>plano Creator</strong>.
+                </p>
+            </div>
+        `;
+                    }
+                }
+
+                /* =========================
+                RESTRIÇÃO POR PLANO (UI)
+                ========================= */
+
+                if (userData.plan === "Basic") {
+
+                    const plataformasVideo = [
+                        "Instagram Reels",
+                        "YouTube Shorts",
+                        "TikTok (vídeo curto)"
+                    ];
+
+                    const selectPlataforma = document.getElementById("plataforma");
+
+                    [...selectPlataforma.options].forEach(option => {
+                        if (plataformasVideo.includes(option.text)) {
+                            option.disabled = true;
+                        }
+                    });
+                }
 
             } catch {
                 window.location.href = "/login/";
@@ -585,6 +638,34 @@ ${item.conteudo}
             }
 
             /* =========================
+            HISTÓRICO — RESTRIÇÃO BASIC
+            ========================= */
+
+            if (userData.plan === "Basic") {
+                const container = document.getElementById("historico-lista");
+                const filtros = document.querySelector(".history-filters");
+
+                if (filtros) filtros.style.display = "none";
+
+                if (container) {
+                    container.innerHTML = `
+            <div class="history-locked">
+                <h3>Histórico indisponível neste plano</h3>
+                <p>
+                    O histórico de conteúdos está disponível a partir do
+                    <strong>plano Creator</strong>.
+                </p>
+                <a href="https://gerador-conteudo.codertec.com.br/#planos"
+                   target="_blank"
+                   class="btn-primary">
+                   Fazer upgrade
+                </a>
+            </div>
+        `;
+                }
+            }
+
+            /* =========================
                ABAS INTERNAS
             ========================= */
             document.querySelectorAll(".app-tabs__button").forEach(btn => {
@@ -647,6 +728,105 @@ ${item.conteudo}
                 window.URL.revokeObjectURL(url);
             };
 
+            /* =====================================================
+               GERAR CONTEÚDO (SUBMIT DO FORM)
+            ===================================================== */
+
+            document.addEventListener("DOMContentLoaded", function () {
+
+                const form = document.getElementById("form-briefing");
+                if (!form) return;
+
+                form.addEventListener("submit", async function (e) {
+                    e.preventDefault();
+
+                    const token = localStorage.getItem("access_token");
+                    if (!token) {
+                        window.location.href = "/login/";
+                        return;
+                    }
+
+                    const statusEl = document.getElementById("form-status");
+                    const btn = document.getElementById("btn-gerar");
+                    const resultadoEl = document.getElementById("resultado");
+                    const btnCopiar = document.getElementById("btn-copiar");
+
+                    statusEl.textContent = "Gerando conteúdo...";
+                    btn.disabled = true;
+
+                    const payload = {
+                        nicho: nicho.value,
+                        tema: tema.value,
+                        plataforma: plataforma.value,
+                        tom: tom.value,
+                        tamanho: tamanho.value,
+                        publico: publico.value,
+                        palavras_chave: palavras_chave.value,
+                        cta: cta.checked,
+                        hashtags: hashtags.checked,
+                        sugestoes_imagens: sugestoes_imagens.checked,
+                        modelo: modelo.value,
+                        temperature: temperature.value
+                    };
+
+                    try {
+                        const response = await fetch("/api/gerar-conteudo/", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": "Bearer " + token
+                            },
+                            body: JSON.stringify(payload)
+                        });
+
+                        const data = await response.json();
+
+                        if (response.status === 403 && data.upgrade_required) {
+                            alert("Seu plano atual não permite gerar vídeos curtos. Faça upgrade para o plano Creator.");
+                            return;
+                        }
+
+                        /* ===============================
+                           🔴 LIMITE ATINGIDO (429)
+                        =============================== */
+                        if (response.status === 429) {
+                            atualizarUsoMensal(data.used, data.limit);
+                            abrirModalLimite();
+
+                            statusEl.textContent = "";
+                            btn.disabled = false;
+                            return;
+                        }
+
+                        /* ===============================
+                           ❌ OUTROS ERROS
+                        =============================== */
+                        if (!response.ok) {
+                            alert(data.error || "Erro ao gerar conteúdo.");
+                            statusEl.textContent = "";
+                            btn.disabled = false;
+                            return;
+                        }
+
+                        /* ===============================
+                           ✅ SUCESSO
+                        =============================== */
+                        resultadoEl.textContent = data.resultado;
+                        btnCopiar.disabled = false;
+
+                        atualizarUsoMensal(data.used, data.limit);
+
+                        statusEl.textContent = "Conteúdo gerado com sucesso!";
+                        btn.disabled = false;
+
+                    } catch (err) {
+                        alert("Erro inesperado ao gerar conteúdo.");
+                        statusEl.textContent = "";
+                        btn.disabled = false;
+                    }
+                });
+
+            });
         });
     </script>
 

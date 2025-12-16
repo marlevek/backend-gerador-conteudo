@@ -44,6 +44,23 @@ class GerarConteudoView(APIView):
             )
 
         plan = subscription.plan
+        
+        PLATAFORMAS_VIDEO = [
+            'Instagram Reels',
+            'Youtube Short',
+            'Tiktok (video curto)',
+        ]
+        
+        # Bloqueio de vídeo curto para plano Basic
+        if plan.name == 'Basic' and data.get('plataforma') in PLATAFORMAS_VIDEO:
+            return Response(
+                {
+                    'error': 'Seu plano não inclui geração de roteiros para vídeos curtos.',
+                    'plan': plan.name,
+                    'upgrade_required': True,
+                },
+                status=403
+            )
 
         # buscar uso mensal
         usage = get_or_create_monthly_usage(user)

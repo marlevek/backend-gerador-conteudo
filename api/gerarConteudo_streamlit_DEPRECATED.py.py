@@ -1,3 +1,5 @@
+raise RuntimeError("Arquivo Streamlit NÃO deveria ser carregado")
+
 import streamlit as st
 import streamlit.components.v1 as components
 
