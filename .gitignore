@@ -28,6 +28,9 @@ env/
 *.swp
 *.swo
 
+# Midia
+staticfiles/
+
 
 # ==========================================
 # Arquivos sensíveis
