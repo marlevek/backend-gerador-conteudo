@@ -3,6 +3,6 @@ from .views import webhook_pagamento
 
 
 urlpatterns = [
-    path('webhook/', webhook_pagamento),
+    path('webhook/mercadopago/', webhook_pagamento),
 
 ]
