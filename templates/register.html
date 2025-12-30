@@ -40,45 +40,46 @@
         </form>
     </div>
 
-    <script>
-        document.getElementById("register-form").addEventListener("submit", async function (e) {
-            e.preventDefault();
+<script>
+document.getElementById("registerForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const password2 = document.getElementById('password2').value;
-            const statusEl = document.getElementById("register-status");
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
 
-            if (password !== password2) {
-                statusEl.textContent = "As senhas não coincidem";
-                return;
-            }
+    console.log("submit iniciado");
 
-            statusEl.textContent = "Criando conta...";
-
-            try {
-                const response = await fetch("/auth/register/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, password })
-                });
-
-                if (!response.ok) {
-                    throw new Error("Erro ao criar conta");
-                }
-
-                statusEl.style.color = "green";
-                statusEl.textContent = "Conta criada com sucesso! Redirecionando...";
-
-                setTimeout(() => {
-                    window.location.href = "/login/";
-                }, 1200);
-
-            } catch (err) {
-                statusEl.textContent = err.message;
-            }
+    try {
+        const response = await fetch("/auth/register/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
         });
-    </script>
+
+        console.log("response status:", response.status);
+
+        const data = await response.json();
+        console.log("response data:", data);
+
+        console.log("response.ok:", response.ok);
+
+        alert("PASSOU DO FETCH");  // <- ESSENCIAL
+
+        if (!response.ok) {
+            throw new Error("Erro ao criar conta");
+        }
+
+        alert("VAI REDIRECIONAR");
+
+        window.location.href = "/login/";
+
+    } catch (err) {
+        console.error("ERRO REAL:", err);
+        alert("Erro JS: " + err.message);
+    }
+});
+</script>
+
 
 </body>
 </html>
