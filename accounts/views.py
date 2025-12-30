@@ -14,48 +14,63 @@ from datetime import timedelta
 
 
 
-class RegisterView(generics.CreateAPIView):
-    permission_classes = [AllowAny]   
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email")
-        password = request.data.get("password")
-        
-        if not email or not password:
-            return Response({'error': 'Email e senha são obrigatórios'}, status=400)
+        try:
+            email = request.data.get("email")
+            password = request.data.get("password")
 
-        if User.objects.filter(username=email).exists():
-            return Response({"error": "Usuário já existe"}, status=400)
+            if not email or not password:
+                return Response(
+                    {'error': 'Email e senha são obrigatórios'},
+                    status=400
+                )
 
-        # 1. Criar usuário
-        user = User.objects.create_user(username=email, email=email, password=password)
-        
-        # 2. Associar plano BASIC automaticamente
-        basic_plan = Plan.objects.get_or_create(
-            name = "Basic",
-            defaults={
-                'price': 0,
-                'description': 'Plano básico com 7 dias de trial'
-            }
-        )
-        
-        Subscription.objects.create(
-            user = user,
-            plan = basic_plan,
-            status = 'trial',
-            active = False,
-            start_date = now(),
-            end_date = now() + timedelta(days=7),
-        )
-        
-        # 3. Gerar tokens JWT
-        refresh = RefreshToken.for_user(user)
+            if User.objects.filter(username=email).exists():
+                return Response(
+                    {"error": "Usuário já existe"},
+                    status=400
+                )
 
-        return Response({
-            'message': "usuário criado com sucesso",
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        })
+            # 1. Criar usuário
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password
+            )
+
+            # 2. Buscar plano BASIC (já seedado)
+            basic_plan = Plan.objects.get(
+                external_reference='basic_monthly'
+            )
+
+            # 3. Criar subscription de trial
+            Subscription.objects.create(
+                user=user,
+                plan=basic_plan,
+                status='trial',
+                active=False,
+                end_date=now() + timedelta(days=7),
+            )
+
+            # 4. Gerar JWT
+            refresh = RefreshToken.for_user(user)
+
+            return Response({
+                'message': "Usuário criado com sucesso",
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            })
+
+        except Exception as e:
+            print("❌ ERRO REGISTER:", repr(e))
+            return Response(
+                {'error': 'Erro ao criar conta'},
+                status=500
+            )
+
         
 
 class LoginView(APIView):
