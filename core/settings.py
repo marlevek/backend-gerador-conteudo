@@ -91,7 +91,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
+'''DATABASES = {
     "default": dj_database_url.config(
         env="DATABASE_URL",
         conn_max_age=600,
@@ -100,7 +100,25 @@ DATABASES = {
 }
 
 if not os.getenv("DATABASE_URL"):
+    raise Exception("DATABASE_URL não configurado")'''
+
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
     raise Exception("DATABASE_URL não configurado")
+
+DATABASES = {
+    'default': dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600
+    )
+}
+
+# ⚠️ SÓ adiciona sslmode se NÃO for sqlite
+if not DATABASE_URL.startswith("sqlite"):
+    DATABASES['default'].setdefault('OPTIONS', {})
+    DATABASES['default']['OPTIONS']['sslmode'] = 'require'
 
 
 CSRF_TRUSTED_ORIGINS = [
