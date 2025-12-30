@@ -169,7 +169,7 @@ STATICFILES_DIRS = [
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 CORS_ALLOWED_ORIGINS = [
-    "https://seusite.com",  # Substitua pelo seu domínio real
+    "https://app.gerador.codertec.com.br/",  # Substitua pelo seu domínio real
     "https://www.seusite.com",
 ]
 
