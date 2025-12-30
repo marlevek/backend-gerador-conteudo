@@ -67,16 +67,17 @@ def webhook_pagamento(request):
     
     from django.core.mail import send_mail
 
-    send_mail(
-        subject="🎉 Nova assinatura confirmada",
-        message=f"""
-    Usuário: {user.email}
-    Plano: {plan.name}
-    Status: {status}
-    """,
-        from_email="no-reply@seusite.com",
-        recipient_list=["seuemail@gmail.com"],
+    try:
+        send_mail(
+            subject="Teste SMTP Gmail",
+            message="Email de teste do Django no Railway",
+            from_email=None,
+            recipient_list=["marlevek@gmail.com"],
     )
+        print('Email enviado com sucesso')
+        
+    except Exception as e:
+        print('Erroa o enviar email', e)
     
 
     # Garantir controle de uso mensal
