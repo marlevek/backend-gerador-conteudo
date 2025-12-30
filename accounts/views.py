@@ -31,7 +31,13 @@ class RegisterView(generics.CreateAPIView):
         user = User.objects.create_user(username=email, email=email, password=password)
         
         # 2. Associar plano BASIC automaticamente
-        basic_plan = Plan.objects.get(name = 'Basic')
+        basic_plan = Plan.objects.get_or_create(
+            name = "Basic",
+            defaults={
+                'price': 0,
+                'description': 'Plano básico com 7 dias de trial'
+            }
+        )
         
         Subscription.objects.create(
             user = user,
