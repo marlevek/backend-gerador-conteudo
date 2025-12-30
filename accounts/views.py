@@ -46,6 +46,7 @@ class RegisterView(generics.CreateAPIView):
         refresh = RefreshToken.for_user(user)
 
         return Response({
+            'message': "usuário criado com sucesso",
             "refresh": str(refresh),
             "access": str(refresh.access_token),
         })
