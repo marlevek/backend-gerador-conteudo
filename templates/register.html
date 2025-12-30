@@ -41,44 +41,50 @@
     </div>
 
 <script>
-document.getElementById("registerForm").addEventListener("submit", async (e) => {
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("registerForm");
+  if (!form) {
+    console.error("registerForm não existe no DOM. Verifique o id no HTML renderizado.");
+    return;
+  }
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    console.log("submit iniciado");
+    const email = document.getElementById("email")?.value || "";
+    const password = document.getElementById("password")?.value || "";
+    const statusEl = document.getElementById("status");
 
     try {
-        const response = await fetch("/auth/register/", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password })
-        });
+      const response = await fetch("/auth/register/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-        console.log("response status:", response.status);
+      const data = await response.json().catch(() => ({}));
 
-        const data = await response.json();
-        console.log("response data:", data);
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao criar conta");
+      }
 
-        console.log("response.ok:", response.ok);
+      if (statusEl) {
+        statusEl.style.color = "green";
+        statusEl.textContent = "Conta criada com sucesso! Redirecionando...";
+      }
 
-        alert("PASSOU DO FETCH");  // <- ESSENCIAL
-
-        if (!response.ok) {
-            throw new Error("Erro ao criar conta");
-        }
-
-        alert("VAI REDIRECIONAR");
-
-        window.location.href = "/login/";
-
+      setTimeout(() => (window.location.href = "/login/"), 800);
     } catch (err) {
-        console.error("ERRO REAL:", err);
-        alert("Erro JS: " + err.message);
+      if (statusEl) {
+        statusEl.style.color = "red";
+        statusEl.textContent = err.message;
+      }
+      console.error(err);
     }
+  });
 });
 </script>
+
 
 
 </body>
