@@ -92,8 +92,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.parse(os.getenv("DATABASE_URL", "sqlite:///db.sqlite3"))
+    "default": dj_database_url.config(
+        env="DATABASE_URL",
+        conn_max_age=600,
+        ssl_require=True,
+    )
 }
+
+if not os.getenv("DATABASE_URL"):
+    raise Exception("DATABASE_URL não configurado")
 
 
 CSRF_TRUSTED_ORIGINS = [
