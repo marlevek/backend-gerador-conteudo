@@ -64,6 +64,20 @@ def webhook_pagamento(request):
         sub.last_payment_status = status
 
     sub.save()
+    
+    from django.core.mail import send_mail
+
+    send_mail(
+        subject="🎉 Nova assinatura confirmada",
+        message=f"""
+    Usuário: {user.email}
+    Plano: {plan.name}
+    Status: {status}
+    """,
+        from_email="no-reply@seusite.com",
+        recipient_list=["seuemail@gmail.com"],
+    )
+    
 
     # Garantir controle de uso mensal
     get_or_create_monthly_usage(user)
