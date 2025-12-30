@@ -2,6 +2,8 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from .models import Plan, Subscription
@@ -14,6 +16,7 @@ from django.utils.timezone import now
 from datetime import timedelta
 
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def webhook_pagamento(request):

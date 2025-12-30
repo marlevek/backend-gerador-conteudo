@@ -18,3 +18,5 @@ gunicorn>=21.2.0
 reportlab==4.4.6
 
 whitenoise
+
+mercadopago==2.3.0
