@@ -63,27 +63,7 @@ def webhook_pagamento(request):
         sub.active = False
         sub.last_payment_status = status
 
-    sub.save()
-    
-    from django.core.mail import send_mail
-
-    
-    try:
-        send_mail(
-            subject="🎉 Nova assinatura confirmada",
-            message=f"""
-    Usuário: {user.email}
-    Plano: {plan.name}
-    Status: {status}
-    """,
-            from_email=None,
-            recipient_list=["marcelo@codertec.com.br"],
-            fail_silently=False,
-        )
-    except Exception as e:
-        # LOGA, mas NÃO quebra o webhook
-        print("❌ Erro ao enviar email:", e)
-    
+    sub.save() 
 
     # Garantir controle de uso mensal
     get_or_create_monthly_usage(user)
