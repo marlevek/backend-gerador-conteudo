@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-
+import os 
 
 def gerar_conteudo(
     modelo,
@@ -17,6 +17,17 @@ def gerar_conteudo(
     nicho,
     incluir_sugestoes_imagens,
 ):
+    
+    # Garantias de Produção
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        raise RuntimeError('OPENAI_API_KEY não configurada no ambiente')
+    
+    try:
+        temperatura = float(temperatura)
+    except (TypeError, ValueError):
+        temperatura = 0.7
+    
     system_prompt = """
 Você é um especialista em marketing digital com foco em SEO, copywriting e escrita persuasiva.
 Você escreve sempre em português do Brasil, em linguagem clara, moderna e escaneável.
@@ -68,16 +79,25 @@ Regras importantes:
             ("human", "{user_prompt}"),
         ]
     )
+    
+    try:
+        llm = ChatOpenAI(
+            model=modelo or "gpt-4.1-mini", 
+            temperature=temperatura, 
+            max_retries=2
+            )
 
-    llm = ChatOpenAI(model=modelo, temperature=temperatura, max_retries=2)
+        chain = template | llm | StrOutputParser()
 
-    chain = template | llm | StrOutputParser()
+        resultado = chain.invoke(
+            {
+                "nicho": nicho or "negócios locais",
+                "user_prompt": user_prompt,
+            }
+        )
 
-    resultado = chain.invoke(
-        {
-            "nicho": nicho or "negócios locais",
-            "user_prompt": user_prompt,
-        }
-    )
-
-    return resultado
+        return resultado
+    
+    except Exception as e:
+        raise RuntimeError(f"Erro ao gerar conteúdo com IA: {str(e)}")
+        

@@ -24,11 +24,105 @@ class GerarConteudoView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        return Response({
-            "resultado": "OK — backend respondeu",
-            "used": 0,
-            "limit": 100
-        })
+        # Verifica assinatura ativa
+        # assinatura = Subscription.objects.filter(user=request.user, #active=True).first()
+        # if not assinatura:
+        # return Response({"error": "Assinatura inativa"}, status=403)
+
+        user = request.user
+        data = request.data
+
+        # Verificar Assinatura
+        subscription = Subscription.objects.filter(
+            user=user,
+            active=True,
+        ).select_related('plan').first()
+
+        if not subscription:
+            return Response(
+                {'error': 'Assinatura inativa ou inexistente'},
+                status=403
+            )
+
+        plan = subscription.plan
+
+        PLATAFORMAS_VIDEO = [
+            'Instagram Reels',
+            'Youtube Short',
+            'Tiktok (video curto)',
+        ]
+
+        # Bloqueio de vídeo curto para plano Basic
+        if plan.name == 'Basic' and data.get('plataforma') in PLATAFORMAS_VIDEO:
+            return Response(
+                {
+                    'error': 'Seu plano não inclui geração de roteiros para vídeos curtos.',
+                    'plan': plan.name,
+                    'upgrade_required': True,
+                },
+                status=403
+            )
+
+        # buscar uso mensal
+        usage = get_or_create_monthly_usage(user)
+
+        # Bloquer se atingiu limite
+        if usage.used_posts >= plan.max_posts:
+            return Response(
+                {
+                    'error': 'Limite mensal de conteúdos atingido',
+                    'plan': plan.name,
+                    'limit': plan.max_posts,
+                    'used': usage.used_posts,
+                },
+                status=429
+            )
+
+        try:
+            resultado = gerar_conteudo(
+                modelo=data.get("modelo", "gpt-4o-mini"),
+                temperatura=float(data.get("temperature", 0.7)),
+                tema=data["tema"],
+                plataforma=data["plataforma"],
+                tom=data["tom"],
+                tamanho=data["tamanho"],
+                publico=data["publico"],
+                incluir_cta=data["cta"],
+                incluir_hashtags=data["hashtags"],
+                palavras_chave=data.get("palavras_chave", ""),
+                nicho=data.get("nicho", ""),
+                incluir_sugestoes_imagens=data["sugestoes_imagens"],
+            )
+
+            # ✅ SALVAR HISTÓRICO
+            ContentHistory.objects.create(
+                user=user,
+                plan=plan,
+                tema=data.get("tema"),
+                plataforma=data.get("plataforma"),
+                tom=data.get("tom"),
+                nicho=data.get("nicho", ""),
+                conteudo=resultado,
+            )
+
+            with transaction.atomic():
+                usage = get_or_create_monthly_usage(user)
+                usage.used_posts = F('used_posts') + 1
+                usage.save(update_fields=['used_posts'])
+                usage.refresh_from_db()
+
+            return Response(
+                {"resultado": resultado,
+                 'plan': plan.name,
+                 'limit': plan.max_posts,
+                 'used': usage.used_posts
+                 })
+
+        except Exception as e:
+            return Response(
+                {"error": f"Erro ao gerar conteúdo:{ str(e)}"}, 
+                status=500
+                )
 
 
 @api_view(['GET'])
