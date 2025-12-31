@@ -389,11 +389,83 @@
                 userData = await resp.json();
                 window.userPlan = userData.plan;
 
+                /* =====================================================
+   AVISO FINAL DE TRIAL
+===================================================== */
+
+                function mostrarAvisoTrial(userData) {
+                    if (
+                        userData.subscription_status !== "trial" ||
+                        !userData.trial_ends_at
+                    ) return;
+
+                    const dias = calcularDiasRestantes(userData.trial_ends_at);
+                    if (dias > 3) return;
+
+                    const slot = document.getElementById("trial-banner-slot");
+                    if (!slot) return;
+
+                    let titulo = "";
+                    let texto = "";
+                    let cta = "";
+                    let classe = "";
+
+                    if (dias >= 2) {
+                        titulo = "⏳ Seu teste gratuito está acabando";
+                        texto = `
+            Faltam <strong>${dias} dias</strong> para o fim do seu teste.
+            Continue gerando conteúdos com IA sem interrupções.
+        `;
+                        cta = "Continuar com o plano Creator";
+                        classe = "trial-info";
+                    } else if (dias === 1) {
+                        titulo = "⚠️ Último dia do seu teste gratuito";
+                        texto = `
+            Amanhã o acesso ao histórico e às exportações será pausado.
+            Faça o upgrade agora para não perder nada.
+        `;
+                        cta = "Fazer upgrade agora";
+                        classe = "trial-warning";
+                    } else {
+                        titulo = "🚨 Seu teste termina hoje";
+                        texto = `
+            Para continuar usando o Gerador de Conteúdo com IA sem bloqueios,
+            ative seu plano agora.
+        `;
+                        cta = "Ativar plano agora";
+                        classe = "trial-danger";
+                    }
+
+                    slot.innerHTML = `
+        <div class="trial-banner ${classe}">
+            <div class="trial-banner-content">
+                <strong>${titulo}</strong>
+                <p>${texto}</p>
+                <a
+                    href="https://gerador-conteudo.codertec.com.br/#planos"
+                    target="_blank"
+                    class="btn-primary"
+                >
+                    ${cta}
+                </a>
+            </div>
+        </div>
+    `;
+                }
+
+                // 🔑 CHAMADA REAL (sem isso não aparece)
+                mostrarAvisoTrial(userData);
+
+
             } catch {
                 localStorage.clear();
                 window.location.href = "/login/";
                 return;
             }
+
+
+
+
 
             /* =========================
                USO MENSAL
