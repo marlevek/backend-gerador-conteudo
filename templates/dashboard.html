@@ -584,6 +584,77 @@
                 });
             });
 
+            /* =====================================================
+   HISTÓRICO (PLANO BASIC vs CREATOR)
+===================================================== */
+
+            window.carregarHistorico = async function () {
+                const container = document.getElementById("historico-lista");
+                if (!container) return;
+
+                /* 🔒 PLANO BASIC — AVISO + UPGRADE */
+                if (window.userPlan === "Basic") {
+                    container.innerHTML = `
+            <div class="history-locked">
+                <h2>Histórico e exportação em PDF</h2>
+                <p>
+                    Disponível a partir do <strong>plano Creator</strong>.
+                </p>
+                <ul>
+                    <li>✔️ Acesso ao histórico de conteúdos</li>
+                    <li>✔️ Exportação em PDF</li>
+                    <li>✔️ Organização por cliente / nicho</li>
+                </ul>
+                <a
+                    href="https://gerador-conteudo.codertec.com.br/#planos"
+                    target="_blank"
+                    class="btn-primary"
+                >
+                    Fazer upgrade
+                </a>
+            </div>
+        `;
+                    return;
+                }
+
+                /* 🔓 PLANOS CREATOR / ELITE */
+                const token = localStorage.getItem("access_token");
+                container.innerHTML = "<p>Carregando histórico...</p>";
+
+                try {
+                    const response = await fetch("/api/historico/", {
+                        headers: { Authorization: "Bearer " + token }
+                    });
+
+                    if (!response.ok) {
+                        container.innerHTML = "<p>Erro ao carregar histórico.</p>";
+                        return;
+                    }
+
+                    const data = await response.json();
+
+                    if (!Array.isArray(data) || data.length === 0) {
+                        container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
+                        return;
+                    }
+
+                    container.innerHTML = data.map((item) => `
+            <div class="history-item">
+                <div class="history-meta">
+                    <strong>${item.tema}</strong><br>
+                    <small>${item.plataforma}</small>
+                </div>
+                <pre class="history-content">${item.conteudo}</pre>
+            </div>
+        `).join("");
+
+                } catch {
+                    container.innerHTML = "<p>Erro inesperado ao carregar histórico.</p>";
+                }
+            };
+
+
+
         });
     </script>
 
