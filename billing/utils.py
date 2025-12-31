@@ -1,5 +1,7 @@
 from django.utils import timezone
 from .models import MonthlyUsage
+from django.utils.timezone import now
+from .models import Subscription
 
 
 PLAN_CAPABILITIES = {
@@ -36,3 +38,30 @@ def get_or_create_monthly_usage(user):
     
     return usage
 
+
+def get_valid_subscription(user):
+    """
+    Retorna a assinatura válida do usuário:
+    - trial ainda válido
+    - ou assinatura ativa
+    Caso contrário, retorna None.
+    """
+    sub = (
+        Subscription.objects
+        .filter(user=user)
+        .order_by("-start_date")
+        .first()
+    )
+
+    if not sub:
+        return None
+
+    # Trial válido
+    if sub.status == "trial" and sub.end_date and sub.end_date >= now():
+        return sub
+
+    # Assinatura ativa
+    if sub.status == "active" and sub.active:
+        return sub
+
+    return None

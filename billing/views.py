@@ -14,7 +14,35 @@ from django.http import HttpResponse
 from django.utils.dateparse import parse_date 
 from django.utils.timezone import now
 from datetime import timedelta
-from .models import Plan
+from .models import Plan, Subscription
+
+
+
+# Criar Assinatura/Planos
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def criar_assinatura(request):
+    plan_id = request.data.get("plan_id")
+
+    if not plan_id:
+        return Response({"error": "Plano não informado"}, status=400)
+
+    plan = Plan.objects.filter(id=plan_id, active=True).first()
+
+    if not plan:
+        return Response({"error": "Plano inválido"}, status=404)
+
+    checkout_url = (
+        "https://www.mercadopago.com.br/subscriptions/checkout"
+        f"?preapproval_plan_id={plan.external_reference}"
+        "&back_url=https://app.gerador.codertec.com.br/assinatura/sucesso/"
+        "&failure_url=https://app.gerador.codertec.com.br/assinatura/falha/"
+    )
+
+    return Response({
+        "checkout_url": checkout_url
+    })
+
 
 
 @csrf_exempt
@@ -75,25 +103,22 @@ def webhook_pagamento(request):
     return Response({"message": "Webhook processado com sucesso"}, status=200)
 
 
-# Criar Assinatura/Planos
-@api_view(['POST'])
+
+# Pg de redirecionamento após pagamento
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def criar_assinatura(request):
-    plan_id = request.data.get("plan_id")
-
-    if not plan_id:
-        return Response({"error": "Plano não informado"}, status=400)
-
-    plan = Plan.objects.filter(id=plan_id, active=True).first()
-
-    if not plan:
-        return Response({"error": "Plano inválido"}, status=404)
-
-    checkout_url = (
-        "https://www.mercadopago.com.br/subscriptions/checkout"
-        f"?preapproval_plan_id={plan.external_reference}"
+def minha_assinatura(request):
+    sub = (
+        Subscription.objects.filter(user=request.user).order_by('-start_date').first()
     )
-
+    
+    if not sub:
+        return Response({'has_subscription': False})
+    
     return Response({
-        "checkout_url": checkout_url
+        'has_subscription': True,
+        'status': sub.status,
+        'active': sub.active,
+        'plan': sub.plan.name if sub.plan else None,
+        'end_date': sub.end_date,
     })

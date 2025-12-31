@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from .decorators import assinatura_ativa_required
 from billing.models import Subscription, ContentHistory
-from billing.utils import PLAN_CAPABILITIES, get_or_create_monthly_usage
+from billing.utils import PLAN_CAPABILITIES, get_or_create_monthly_usage, get_valid_subscription
 from .llm_utils import gerar_conteudo
 from django.db import transaction
 from django.db.models import F
@@ -128,10 +128,12 @@ class GerarConteudoView(APIView):
 def me(request):
     user = request.user
 
-    subscription = Subscription.objects.filter(
-        user=user,
-        status__in=['trial', 'active']
-    ).select_related('plan').first()
+    subscription = (
+        Subscription.objects.filter(user=user).select_related('plan').order_by('-start_date').first()
+    )
+    
+    # Assinatura válida
+    valid_subscription = get_valid_subscription(user)
 
     # Garante que o monthly sempre existe
     usage = get_or_create_monthly_usage(user)
@@ -142,7 +144,7 @@ def me(request):
     return Response({
         'email': user.email,
         'is_authenticated': True,
-        'subscription_active': subscription.is_active if subscription else False,
+        'subscription_active': bool(valid_subscription),
         
         # NOVOS CAMPOS (UX do trial)
         'subscription_status': subscription.status if subscription else None,
@@ -159,15 +161,12 @@ def me(request):
 @permission_classes([IsAuthenticated])
 def usage_me(request):
     user = request.user
-
-    subscription = Subscription.objects.filter(
-        user=user,
-        status__in=['trial', 'active']
-    ).select_related("plan").first()
+    
+    subscription = get_valid_subscription(request.user)
 
     if not subscription:
         return Response(
-            {"error": "Assinatura inativa"},
+            {"error": "Assinatura inativa ou trial expirado"},
             status=403
         )
 

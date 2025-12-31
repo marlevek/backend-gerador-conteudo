@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Assinatura confirmada</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 60px; }
+    .box { max-width: 520px; margin: auto; }
+    .ok { color: #2e7d32; }
+    .wait { color: #f57c00; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1 id="title">Processando sua assinatura…</h1>
+    <p id="msg">Aguarde alguns segundos.</p>
+  </div>
+  <button id="btn-dashboard" style="display: none; margin-top: 20px;">Ir para o dashboard</button>
+
+<script>
+  async function checkSubscription() {
+    const res = await fetch("/billing/minha-assinatura/", {
+      headers: {
+        "Authorization": "Bearer " + localStorage.getItem("access")
+      }
+    });
+
+    const data = await res.json();
+
+    const title = document.getElementById("title");
+    const msg = document.getElementById("msg");
+    const btn = document.getElementById("btn-dashboard");
+
+    if (data.active) {
+      title.textContent = "🎉 Assinatura confirmada!";
+      title.className = "ok";
+      msg.textContent = "Plano ativo: " + data.plan;
+
+      btn.style.display = "inline-block";
+      btn.onclick = () => {
+        window.location.href = "/dashboard/";
+      };
+    } else {
+      title.textContent = "⏳ Pagamento em processamento";
+      title.className = "wait";
+      msg.textContent = "Se isso demorar mais de 1 minuto, atualize a página.";
+    }
+  }
+
+  setTimeout(checkSubscription, 2000);
+</script>
+
+</body>
+</html>
