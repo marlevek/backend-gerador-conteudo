@@ -332,552 +332,187 @@
         };
     </script>
 
-    <script>
-
-        function calcularDiasRestantes(dataFim) {
-            if (!dataFim) return 0;
-
-            const agora = new Date();
-            const fim = new Date(dataFim);
-
-            const diffMs = fim - agora;
-            return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-        }
-
-        function mostrarBannerTrial(userData) {
-            // só mostra banner se for trial E plano ainda for Basic
-            if (
-                userData.subscription_status !== "trial" ||
-                userData.plan !== "Basic"
-            ) {
-                return;
-            }
-
-            const slot = document.getElementById("trial-banner-slot");
-            if (!slot) return;
-
-            const dias = calcularDiasRestantes(userData.trial_ends_at);
-
-            slot.innerHTML = `
-        <div class="trial-banner">
-            <div class="trial-card">
-                <div class="trial-text">
-                    <strong>Período de teste ativo</strong>
-                    <span>
-                        Você tem <strong>${dias} dias</strong> para testar todas as funções do plano
-                        <strong>${userData.plan}</strong>.
-                    </span>
-                </div>
-
-                <a href="https://gerador-conteudo.codertec.com.br/#planos"
-                   target="_blank"
-                   class="btn-primary">
-                    Fazer upgrade
-                </a>
-            </div>
-        </div>
-    `;
-        }
-
-        /* =====================================================
-           FUNÇÕES AUXILIARES
-        ===================================================== */
-
-        window.exportarPDFItem = async function (id) {
-            const token = localStorage.getItem("access_token");
-            if (!token) {
-                alert("Sessão expirada. Faça login novamente.");
-                return;
-            }
-
-            try {
-                const response = await fetch(`${window.URL_EXPORT_PDF}?id=${id}`, {
-                    headers: {
-                        "Authorization": "Bearer " + token
-                    }
-                });
-
-                if (!response.ok) {
-                    alert("Erro ao gerar PDF.");
-                    return;
-                }
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `conteudo_${id}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-
-                window.URL.revokeObjectURL(url);
-
-            } catch (err) {
-                console.error(err);
-                alert("Erro inesperado ao exportar PDF.");
-            }
-        };
-
-
-        function abrirAba(tabId) {
-            document.querySelectorAll(".app-tabs__button").forEach(btn => {
-                btn.classList.toggle("is-active", btn.dataset.tab === tabId);
-            });
-
-            document.querySelectorAll(".app-tab-pane").forEach(pane => {
-                pane.classList.toggle("is-hidden", pane.id !== tabId);
-            });
-        }
-
-        function ativarMenu(el) {
-            document.querySelectorAll(".app-header__nav-item")
-                .forEach(i => i.classList.remove("is-active"));
-            el.classList.add("is-active");
-        }
-
-        window.atualizarUsoMensal = function (used, limit) {
-            const usedEl = document.getElementById("usage-used");
-            const limitEl = document.getElementById("usage-limit");
-            if (!usedEl || !limitEl) return;
-            usedEl.textContent = used;
-            limitEl.textContent = limit;
-        };
-
-        window.toggleConteudo = function (id) {
-            const el = document.getElementById("conteudo-" + id);
-            if (el) el.classList.toggle("expanded");
-        };
-
-        window.copiarHistorico = function (id) {
-            const el = document.getElementById("conteudo-" + id);
-            if (el) navigator.clipboard.writeText(el.textContent);
-        };
-
-        /* =====================================================
-           HISTÓRICO
-        ===================================================== */
-
-        window.carregarHistorico = async function () {
-
-            if (window.userPlan === "Basic") return;
-
-            const token = localStorage.getItem("access_token");
-            const container = document.getElementById("historico-lista");
-            if (!container) return;
-
-            container.innerHTML = "<p>Carregando histórico...</p>";
-
-            try {
-                const response = await fetch("/api/historico/", {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-
-                if (!response.ok) {
-                    container.innerHTML = "<p>Histórico indisponível.</p>";
-                    return;
-                }
-
-                const data = await response.json();
-
-                if (!Array.isArray(data) || data.length === 0) {
-                    container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
-                    return;
-                }
-
-                container.innerHTML = data.map((item, index) => {
-
-                    console.log("ITEM DO HISTÓRICO:", item);
-
-                    return `
-        <div class="history-item">
-            <div class="history-meta">
-                <strong>${item.tema}</strong><br>
-                <small>${item.plataforma} • ${item.created_at}</small>
-            </div>
-
-            <pre id="conteudo-${index}" class="history-content">
-${item.conteudo}
-            </pre>
-
-            <div class="history-actions">
-                <button onclick="toggleConteudo(${index})">
-                    Ver mais / Ver menos
-                </button>
-                <button onclick="copiarHistorico(${index})">
-                    Copiar
-                </button>
-                <button onclick="exportarPDFItem(${item.id})">
-                    PDF
-                </button>
-            </div>
-        </div>
-    `;
-                }).join("");
-
-
-            } catch (e) {
-                container.innerHTML = "<p>Erro ao carregar histórico.</p>";
-            }
-        };
-
-        /* =====================================================
-           DASHBOARD
-        ===================================================== */
-
-        document.addEventListener("DOMContentLoaded", async function () {
-
-            const token = localStorage.getItem("access_token");
-            if (!token) {
-                window.location.href = "/login/";
-                return;
-            }
-
-            let userData = null;
-
-            /* =========================
-               PERFIL / ASSINATURA
-            ========================= */
-            try {
-                const response = await fetch("/api/me/", {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-
-                if (!response.ok) {
-                    localStorage.clear();
-                    window.location.href = "/login/";
-                    return;
-                }
-
-                userData = await response.json();
-                window.userPlan = userData.plan;
-                mostrarBannerTrial(userData);
-
-
-                /* =========================
-                ESCONDER EXPORTAÇÕES (PLANO BASIC)
-                ========================= */
-
-                if (window.userPlan === "Basic") {
-                    const exportBox = document.querySelector(".history-actions-global");
-                    if (exportBox) {
-                        exportBox.style.display = "none";
-                    }
-                }
-
-
-                /* =========================
-                HISTÓRICO — TEXTO PLANO BASIC
-                ========================= */
-
-                if (userData.plan === "Basic") {
-                    const container = document.getElementById("historico-lista");
-                    if (container) {
-                        container.innerHTML = `
-            <div class="history-locked">
-                <p>
-                    Histórico disponível apenas a partir do
-                    <strong>plano Creator</strong>.
-                </p>
-            </div>
-        `;
-                    }
-                }
-
-                /* =========================
-                RESTRIÇÃO POR PLANO (UI)
-                ========================= */
-
-                if (userData.plan === "Basic") {
-
-                    const plataformasVideo = [
-                        "Instagram Reels",
-                        "YouTube Shorts",
-                        "TikTok (vídeo curto)"
-                    ];
-
-                    const selectPlataforma = document.getElementById("plataforma");
-
-                    [...selectPlataforma.options].forEach(option => {
-                        if (plataformasVideo.includes(option.text)) {
-                            option.disabled = true;
-                        }
-                    });
-                }
-
-            } catch {
-                window.location.href = "/login/";
-                return;
-            }
-
-            /* =========================
-               USO MENSAL
-            ========================= */
-            try {
-                const usageResp = await fetch("/api/usage/", {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-
-                if (usageResp.ok) {
-                    const usageData = await usageResp.json();
-                    atualizarUsoMensal(usageData.used, usageData.limit);
-                }
-            } catch { }
-
-            /* =========================
-               LOGOUT
-            ========================= */
-            const btnLogout = document.getElementById("btn-logout");
-            if (btnLogout) {
-                btnLogout.addEventListener("click", async () => {
-                    try {
-                        await fetch("/auth/logout/", {
-                            method: "POST",
-                            headers: {
-                                "Authorization": "Bearer " + token,
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                refresh: localStorage.getItem("refresh_token")
-                            })
-                        });
-                    } catch { }
-
-                    localStorage.clear();
-                    window.location.href = "/login/";
-                });
-            }
-
-            /* =========================
-               MENU SUPERIOR
-            ========================= */
-            const navPainel = document.getElementById("nav-painel");
-            const navHistorico = document.getElementById("nav-historico");
-
-            if (navPainel) {
-                navPainel.addEventListener("click", () => {
-                    abrirAba("tab-gerar");
-                    ativarMenu(navPainel);
-                });
-            }
-
-            if (navHistorico) {
-                if (userData.plan === "Creator" || userData.plan === "Elite") {
-
-                    navHistorico.classList.remove("is-disabled");
-                    navHistorico.style.cursor = "pointer";
-
-                    navHistorico.addEventListener("click", () => {
-
-                        // mostra aba
-                        abrirAba("tab-historico");
-                        ativarMenu(navHistorico);
-
-                        // espera o DOM ficar visível e carrega
-                        requestAnimationFrame(() => {
-                            carregarHistorico();
-                        });
-                    });
-
-                } else {
-                    navHistorico.classList.add("is-disabled");
-                    navHistorico.title = "Disponível a partir do plano Creator";
-                }
-            }
-
-            /* =========================
-            HISTÓRICO — RESTRIÇÃO BASIC
-            ========================= */
-
-            if (userData.plan === "Basic") {
-                const container = document.getElementById("historico-lista");
-                const filtros = document.querySelector(".history-filters");
-
-                if (filtros) filtros.style.display = "none";
-
-                if (container) {
-                    container.innerHTML = `
-            <div class="history-locked">
-                <h3>Histórico indisponível neste plano</h3>
-                <p>
-                    O histórico de conteúdos está disponível a partir do
-                    <strong>plano Creator</strong>.
-                </p>
-                <a href="https://gerador-conteudo.codertec.com.br/#planos"
-                   target="_blank"
-                   class="btn-primary">
-                   Fazer upgrade
-                </a>
-            </div>
-        `;
-                }
-            }
-
-            /* =========================
-               ABAS INTERNAS
-            ========================= */
-            document.querySelectorAll(".app-tabs__button").forEach(btn => {
-                btn.addEventListener("click", () => {
-                    abrirAba(btn.dataset.tab);
-                    if (btn.dataset.tab === "tab-historico") {
-                        requestAnimationFrame(() => {
-                            carregarHistorico();
-                        });
-                    }
-                });
-            });
-
-            /* =========================
-               EXPORTAÇÃO (ELITE)
-            ========================= */
-            window.exportarCSV = async function () {
-                const response = await fetch("/api/historico/export/csv/", {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-
-                if (!response.ok) {
-                    alert("Erro ao exportar CSV");
-                    return;
-                }
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "historico_conteudos.csv";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-
-                window.URL.revokeObjectURL(url);
-            };
-
-            window.exportarPDF = async function () {
-                const response = await fetch(`/api/historico/export/pdf/?id=${id}`, {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-
-                if (!response.ok) {
-                    alert("Erro ao exportar PDF");
-                    return;
-                }
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "historico_conteudos.pdf";
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-
-                window.URL.revokeObjectURL(url);
-            };
-
-            /* =====================================================
-               GERAR CONTEÚDO (SUBMIT DO FORM)
-            ===================================================== */
-
-            document.addEventListener("DOMContentLoaded", function () {
-
-                const form = document.getElementById("form-briefing");
-                if (!form) return;
-
-                form.addEventListener("submit", async function (e) {
-                    e.preventDefault();
-
-                    const token = localStorage.getItem("access_token");
-                    if (!token) {
-                        window.location.href = "/login/";
-                        return;
-                    }
-
-                    const statusEl = document.getElementById("form-status");
-                    const btn = document.getElementById("btn-gerar");
-                    const resultadoEl = document.getElementById("resultado");
-                    const btnCopiar = document.getElementById("btn-copiar");
-
-                    statusEl.textContent = "Gerando conteúdo...";
-                    btn.disabled = true;
-
-                    const payload = {
-                        nicho: nicho.value,
-                        tema: tema.value,
-                        plataforma: plataforma.value,
-                        tom: tom.value,
-                        tamanho: tamanho.value,
-                        publico: publico.value,
-                        palavras_chave: palavras_chave.value,
-                        cta: cta.checked,
-                        hashtags: hashtags.checked,
-                        sugestoes_imagens: sugestoes_imagens.checked,
-                        modelo: modelo.value,
-                        temperature: temperature.value
-                    };
-
-                    try {
-                        const response = await fetch("/api/gerar-conteudo/", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Authorization": "Bearer " + token
-                            },
-                            body: JSON.stringify(payload)
-                        });
-
-                        const data = await response.json();
-
-                        if (response.status === 403 && data.upgrade_required) {
-                            alert("Seu plano atual não permite gerar vídeos curtos. Faça upgrade para o plano Creator.");
-                            return;
-                        }
-
-                        /* ===============================
-                           🔴 LIMITE ATINGIDO (429)
-                        =============================== */
-                        if (response.status === 429) {
-                            atualizarUsoMensal(data.used, data.limit);
-                            abrirModalLimite();
-
-                            statusEl.textContent = "";
-                            btn.disabled = false;
-                            return;
-                        }
-
-                        /* ===============================
-                           ❌ OUTROS ERROS
-                        =============================== */
-                        if (!response.ok) {
-                            alert(data.error || "Erro ao gerar conteúdo.");
-                            statusEl.textContent = "";
-                            btn.disabled = false;
-                            return;
-                        }
-
-                        /* ===============================
-                           ✅ SUCESSO
-                        =============================== */
-                        resultadoEl.textContent = data.resultado;
-                        btnCopiar.disabled = false;
-
-                        atualizarUsoMensal(data.used, data.limit);
-
-                        statusEl.textContent = "Conteúdo gerado com sucesso!";
-                        btn.disabled = false;
-
-                    } catch (err) {
-                        alert("Erro inesperado ao gerar conteúdo.");
-                        statusEl.textContent = "";
-                        btn.disabled = false;
-                    }
-                });
-
-            });
+<script>
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function calcularDiasRestantes(dataFim) {
+    if (!dataFim) return 0;
+    const agora = new Date();
+    const fim = new Date(dataFim);
+    const diffMs = fim - agora;
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+window.atualizarUsoMensal = function (used, limit) {
+    const usedEl = document.getElementById("usage-used");
+    const limitEl = document.getElementById("usage-limit");
+    if (usedEl) usedEl.textContent = used;
+    if (limitEl) limitEl.textContent = limit;
+};
+
+window.abrirModalLimite = function () {
+    const el = document.getElementById("modal-limite");
+    if (el) el.classList.add("is-visible");
+};
+
+window.fecharModalLimite = function () {
+    const el = document.getElementById("modal-limite");
+    if (el) el.classList.remove("is-visible");
+};
+
+/* =====================================================
+   DASHBOARD
+===================================================== */
+
+document.addEventListener("DOMContentLoaded", async () => {
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
+
+    /* =========================
+       PERFIL / PLANO
+    ========================= */
+    let userData = null;
+
+    try {
+        const resp = await fetch("/api/me/", {
+            headers: { Authorization: "Bearer " + token }
         });
-    </script>
+
+        if (!resp.ok) throw new Error();
+
+        userData = await resp.json();
+        window.userPlan = userData.plan;
+
+    } catch {
+        localStorage.clear();
+        window.location.href = "/login/";
+        return;
+    }
+
+    /* =========================
+       USO MENSAL
+    ========================= */
+    try {
+        const usageResp = await fetch("/api/usage/", {
+            headers: { Authorization: "Bearer " + token }
+        });
+
+        if (usageResp.ok) {
+            const usage = await usageResp.json();
+            atualizarUsoMensal(usage.used, usage.limit);
+        }
+    } catch {}
+
+    /* =========================
+       LOGOUT
+    ========================= */
+    const btnLogout = document.getElementById("btn-logout");
+    if (btnLogout) {
+        btnLogout.onclick = async () => {
+            try {
+                await fetch("/auth/logout/", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        refresh: localStorage.getItem("refresh_token")
+                    })
+                });
+            } catch {}
+
+            localStorage.clear();
+            window.location.href = "/login/";
+        };
+    }
+
+    /* =====================================================
+       GERAR CONTEÚDO (FORM)
+    ===================================================== */
+
+    const form = document.getElementById("form-briefing");
+    if (!form) return;
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const statusEl = document.getElementById("form-status");
+        const btn = document.getElementById("btn-gerar");
+        const resultadoEl = document.getElementById("resultado");
+        const btnCopiar = document.getElementById("btn-copiar");
+
+        statusEl.textContent = "Gerando conteúdo...";
+        btn.disabled = true;
+
+        const payload = {
+            nicho: nicho.value,
+            tema: tema.value,
+            plataforma: plataforma.value,
+            tom: tom.value,
+            tamanho: tamanho.value,
+            publico: publico.value,
+            palavras_chave: palavras_chave.value,
+            cta: cta.checked,
+            hashtags: hashtags.checked,
+            sugestoes_imagens: sugestoes_imagens.checked,
+            modelo: modelo.value,
+            temperature: temperature.value
+        };
+
+        try {
+            const response = await fetch("/api/gerar-conteudo/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            /* 🔒 LIMITE ATINGIDO */
+            if (response.status === 429) {
+                atualizarUsoMensal(data.used, data.limit);
+                abrirModalLimite();
+                statusEl.textContent = "";
+                btn.disabled = false;
+                return;
+            }
+
+            /* ❌ ERRO */
+            if (!response.ok) {
+                alert(data.error || "Erro ao gerar conteúdo.");
+                statusEl.textContent = "";
+                btn.disabled = false;
+                return;
+            }
+
+            /* ✅ SUCESSO */
+            resultadoEl.textContent = data.resultado;
+            btnCopiar.disabled = false;
+            atualizarUsoMensal(data.used, data.limit);
+
+            statusEl.textContent = "Conteúdo gerado com sucesso!";
+            btn.disabled = false;
+
+        } catch (err) {
+            alert("Erro inesperado ao gerar conteúdo.");
+            statusEl.textContent = "";
+            btn.disabled = false;
+        }
+    });
+
+});
+</script>
+
 
 </body>
 
