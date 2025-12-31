@@ -78,7 +78,7 @@ class Subscription(models.Model):
     def activate(self):
         self.status = 'active'
         self.active = True
-        self.end_date = timezone.now() + timedelta(days=30)
+        self.end_date = timezone.now() + timedelta(days=7)
         self.last_payment_status = "paid"
         self.save()
 
