@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from .decorators import assinatura_ativa_required
-from billing.models import Subscription, ContentHistory
+from billing.models import Subscription, ContentHistory, Plan
 from billing.utils import PLAN_CAPABILITIES, get_or_create_monthly_usage, get_valid_subscription
 from .llm_utils import gerar_conteudo
 from django.db import transaction
@@ -18,6 +18,7 @@ from billing.models import ContentHistory
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import openai
+from datetime import timedelta
 
 
 class GerarConteudoView(APIView):
@@ -134,29 +135,57 @@ def me(request):
         Subscription.objects.filter(user=user).select_related('plan').order_by('-start_date').first()
     )
     
-    # Assinatura válida
+    # 🔑 1) Se não existir assinatura, cria TRIAL automático (7 dias, plano Creator)
+    if not subscription:
+        plan_creator = Plan.objects.filter(name='Creator').first()
+        if plan_creator:
+            subscription = Subscription.objects.create(
+                user=user,
+                plan=plan_creator,
+                status='trial',
+                active=True,
+                start_date=now(),
+                end_date=now() + timedelta(days=7),
+            )
+    
+    # 🔑 2) Assinatura realmente válida (trial ativo ou assinatura ativa)
     valid_subscription = get_valid_subscription(user)
 
-    # Garante que o monthly sempre existe
+    # 🔑 3) Uso mensal sempre existe
     usage = get_or_create_monthly_usage(user)
 
-    plan_name = subscription.plan.name if subscription and subscription.plan else None
+    # 🔑 4) Plano e capabilities só da assinatura válida
+    plan_name = (
+        valid_subscription.plan.name
+        if valid_subscription and valid_subscription.plan
+        else None
+    )
+    
     capabilities = PLAN_CAPABILITIES.get(plan_name, {})
+    
+    # 🔑 5) Limite só existe se houver plano válido
+    limit = (
+        valid_subscription.plan.max_posts
+        if valid_subscription and valid_subscription.plan
+        else 0
+    )
 
     return Response({
-        'email': user.email,
-        'is_authenticated': True,
-        'subscription_active': bool(valid_subscription),
-        
-        # NOVOS CAMPOS (UX do trial)
-        'subscription_status': subscription.status if subscription else None,
-        'trial_ends_at': subscription.end_date if subscription else None,
+        "email": user.email,
+        "is_authenticated": True,
 
-        'plan': plan_name,
-        'capabilities': capabilities,
-        'used': usage.used_posts if subscription else 0,
-        'limit': subscription.plan.max_posts if subscription else 0,
-    })
+        # Verdade para o frontend
+        "subscription_active": bool(valid_subscription),
+        "subscription_status": valid_subscription.status if valid_subscription else None,
+        "trial_ends_at": valid_subscription.end_date if valid_subscription else None,
+
+        "plan": plan_name,
+        "capabilities": capabilities,
+
+        # Uso mensal
+        "used": usage.used_posts,
+        "limit": limit,
+    })   
 
 
 @api_view(["GET"])
