@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from django.utils.dateparse import parse_date 
 from django.utils.timezone import now
 from datetime import timedelta
+from .models import Plan
 
 
 @csrf_exempt
@@ -72,3 +73,41 @@ def webhook_pagamento(request):
     get_or_create_monthly_usage(user)
 
     return Response({"message": "Webhook processado com sucesso"}, status=200)
+
+
+# Criar Assinatura/Planos
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def criar_assinatura(request):
+    '''
+    Cria link de checkout do Mercado Pago e retorna
+    a URL para o frontend redirecionar.
+    '''
+    
+    plan_id = request.data.get('plan_id')
+    
+    if not plan_id:
+        return Response(
+            {'error': 'Plano não informado'},
+            status=400
+        )
+        
+    plan = Plan.objects.filter(id=plan_id, active=True).firs()
+    
+    if not plan:
+        return Response(
+            {'error': 'Plano inválido'},
+            status=404
+        )
+        
+    # External reference é o ID real do MP
+    mp_plan_id = plan.external_reference
+    
+    checkout_url = (
+        'https://www.mercadopago.com.br/subscriptions/checkout'
+        f"?preapproval_plan_id={mp_plan_id}"
+    )
+    
+    return Response({
+        'checkout_url': checkout_url
+    })

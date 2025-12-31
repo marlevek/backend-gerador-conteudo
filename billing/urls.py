@@ -1,8 +1,9 @@
 from django.urls import path 
-from .views import webhook_pagamento 
+from .views import webhook_pagamento, criar_assinatura
 
 
 urlpatterns = [
-    path('webhook/mercadopago/', webhook_pagamento),
+    path('assinar/', criar_assinatura, name='criar_assinatura'),
+    path('webhook/mercadopago/', webhook_pagamento),  
 
 ]
