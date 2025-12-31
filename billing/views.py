@@ -79,35 +79,33 @@ def webhook_pagamento(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def criar_assinatura(request):
-    '''
-    Cria link de checkout do Mercado Pago e retorna
-    a URL para o frontend redirecionar.
-    '''
-    
-    plan_id = request.data.get('plan_id')
-    
-    if not plan_id:
-        return Response(
-            {'error': 'Plano não informado'},
-            status=400
+    try:
+        plan_id = request.data.get("plan_id")
+        print("PLAN_ID RECEBIDO:", plan_id)
+
+        if not plan_id:
+            return Response({"error": "Plano não informado"}, status=400)
+
+        plan = Plan.objects.filter(id=int(plan_id)).first()
+        print("PLANO ENCONTRADO:", plan)
+
+        if not plan:
+            return Response({"error": "Plano inválido"}, status=404)
+
+        checkout_url = (
+            "https://www.mercadopago.com.br/subscriptions/checkout"
+            f"?preapproval_plan_id={plan.external_reference}"
         )
-        
-    plan = Plan.objects.filter(id=plan_id, active=True).firs()
-    
-    if not plan:
+
+        return Response({"checkout_url": checkout_url})
+
+    except Exception as e:
+        print("ERRO REAL:", repr(e))
         return Response(
-            {'error': 'Plano inválido'},
-            status=404
+            {
+                "error": "Erro interno",
+                "detail": str(e),
+                "type": e.__class__.__name__
+            },
+            status=500
         )
-        
-    # External reference é o ID real do MP
-    mp_plan_id = plan.external_reference
-    
-    checkout_url = (
-        'https://www.mercadopago.com.br/subscriptions/checkout'
-        f"?preapproval_plan_id={mp_plan_id}"
-    )
-    
-    return Response({
-        'checkout_url': checkout_url
-    })
