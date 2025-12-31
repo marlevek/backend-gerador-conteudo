@@ -332,257 +332,260 @@
         };
     </script>
 
-<script>
-/* =====================================================
-   HELPERS
-===================================================== */
+    <script>
+        /* =====================================================
+           HELPERS
+        ===================================================== */
 
-function calcularDiasRestantes(dataFim) {
-    if (!dataFim) return 0;
-    const agora = new Date();
-    const fim = new Date(dataFim);
-    const diffMs = fim - agora;
-    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-}
-
-window.atualizarUsoMensal = function (used, limit) {
-    const usedEl = document.getElementById("usage-used");
-    const limitEl = document.getElementById("usage-limit");
-    if (usedEl) usedEl.textContent = used;
-    if (limitEl) limitEl.textContent = limit;
-};
-
-window.abrirModalLimite = function () {
-    const el = document.getElementById("modal-limite");
-    if (el) el.classList.add("is-visible");
-};
-
-window.fecharModalLimite = function () {
-    const el = document.getElementById("modal-limite");
-    if (el) el.classList.remove("is-visible");
-};
-
-/* =====================================================
-   DASHBOARD
-===================================================== */
-
-document.addEventListener("DOMContentLoaded", async () => {
-
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-        window.location.href = "/login/";
-        return;
-    }
-
-    /* =========================
-       PERFIL / PLANO
-    ========================= */
-    let userData = null;
-
-    try {
-        const resp = await fetch("/api/me/", {
-            headers: { Authorization: "Bearer " + token }
-        });
-
-        if (!resp.ok) throw new Error();
-
-        userData = await resp.json();
-        window.userPlan = userData.plan;
-
-    } catch {
-        localStorage.clear();
-        window.location.href = "/login/";
-        return;
-    }
-
-    /* =========================
-       USO MENSAL
-    ========================= */
-    try {
-        const usageResp = await fetch("/api/usage/", {
-            headers: { Authorization: "Bearer " + token }
-        });
-
-        if (usageResp.ok) {
-            const usage = await usageResp.json();
-            atualizarUsoMensal(usage.used, usage.limit);
+        function calcularDiasRestantes(dataFim) {
+            if (!dataFim) return 0;
+            const agora = new Date();
+            const fim = new Date(dataFim);
+            const diffMs = fim - agora;
+            return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
         }
-    } catch {}
 
-    /* =========================
-       AJUSTES DE UI POR PLANO
-    ========================= */
-    if (window.userPlan === "Basic") {
-        const filtros = document.querySelector(".history-filters");
-        if (filtros) filtros.style.display = "none";
+        window.atualizarUsoMensal = function (used, limit) {
+            const usedEl = document.getElementById("usage-used");
+            const limitEl = document.getElementById("usage-limit");
+            if (usedEl) usedEl.textContent = used;
+            if (limitEl) limitEl.textContent = limit;
+        };
 
-        const exportBox = document.querySelector(".history-actions-global");
-        if (exportBox) exportBox.style.display = "none";
-    }
+        window.abrirModalLimite = function () {
+            const el = document.getElementById("modal-limite");
+            if (el) el.classList.add("is-visible");
+        };
 
-    /* =========================
-       LOGOUT
-    ========================= */
-    const btnLogout = document.getElementById("btn-logout");
-    if (btnLogout) {
-        btnLogout.onclick = async () => {
+        window.fecharModalLimite = function () {
+            const el = document.getElementById("modal-limite");
+            if (el) el.classList.remove("is-visible");
+        };
+
+        /* =====================================================
+           DASHBOARD
+        ===================================================== */
+
+        document.addEventListener("DOMContentLoaded", async () => {
+
+            const token = localStorage.getItem("access_token");
+            if (!token) {
+                window.location.href = "/login/";
+                return;
+            }
+
+            /* =========================
+               PERFIL / PLANO
+            ========================= */
+            let userData = null;
+
             try {
-                await fetch("/auth/logout/", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": "Bearer " + token,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        refresh: localStorage.getItem("refresh_token")
-                    })
+                const resp = await fetch("/api/me/", {
+                    headers: { Authorization: "Bearer " + token }
                 });
-            } catch {}
 
-            localStorage.clear();
-            window.location.href = "/login/";
-        };
-    }
+                if (!resp.ok) throw new Error();
 
-    /* =====================================================
-       GERAR CONTEÚDO (FORM)
-    ===================================================== */
+                userData = await resp.json();
+                window.userPlan = userData.plan;
 
-    const form = document.getElementById("form-briefing");
-    if (!form) return;
-
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const statusEl = document.getElementById("form-status");
-        const btn = document.getElementById("btn-gerar");
-        const resultadoEl = document.getElementById("resultado");
-        const btnCopiar = document.getElementById("btn-copiar");
-
-        statusEl.textContent = "Gerando conteúdo...";
-        btn.disabled = true;
-
-        const payload = {
-            nicho: nicho.value,
-            tema: tema.value,
-            plataforma: plataforma.value,
-            tom: tom.value,
-            tamanho: tamanho.value,
-            publico: publico.value,
-            palavras_chave: palavras_chave.value,
-            cta: cta.checked,
-            hashtags: hashtags.checked,
-            sugestoes_imagens: sugestoes_imagens.checked,
-            modelo: modelo.value,
-            temperature: temperature.value
-        };
-
-        try {
-            const response = await fetch("/api/gerar/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
-
-            if (response.status === 429) {
-                atualizarUsoMensal(data.used, data.limit);
-                abrirModalLimite();
-                statusEl.textContent = "";
-                btn.disabled = false;
+            } catch {
+                localStorage.clear();
+                window.location.href = "/login/";
                 return;
             }
 
-            if (!response.ok) {
-                alert(data.error || "Erro ao gerar conteúdo.");
-                statusEl.textContent = "";
-                btn.disabled = false;
-                return;
+            /* =========================
+               USO MENSAL
+            ========================= */
+            try {
+                const usageResp = await fetch("/api/usage/", {
+                    headers: { Authorization: "Bearer " + token }
+                });
+
+                if (usageResp.ok) {
+                    const usage = await usageResp.json();
+                    atualizarUsoMensal(usage.used, usage.limit);
+                }
+            } catch { }
+
+            /* =========================
+               AJUSTES DE UI POR PLANO
+            ========================= */
+            if (window.userPlan === "Basic") {
+                const filtros = document.querySelector(".history-filters");
+                if (filtros) filtros.style.display = "none";
+
+                const exportBox = document.querySelector(".history-actions-global");
+                if (exportBox) exportBox.style.display = "none";
             }
 
-            resultadoEl.textContent = data.resultado;
-            btnCopiar.disabled = false;
-            atualizarUsoMensal(data.used, data.limit);
+            /* =========================
+               LOGOUT
+            ========================= */
+            const btnLogout = document.getElementById("btn-logout");
+            if (btnLogout) {
+                btnLogout.onclick = async () => {
+                    try {
+                        await fetch("/auth/logout/", {
+                            method: "POST",
+                            headers: {
+                                "Authorization": "Bearer " + token,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                refresh: localStorage.getItem("refresh_token")
+                            })
+                        });
+                    } catch { }
 
-            statusEl.textContent = "Conteúdo gerado com sucesso!";
-            btn.disabled = false;
+                    localStorage.clear();
+                    window.location.href = "/login/";
+                };
+            }
 
-        } catch {
-            alert("Erro inesperado ao gerar conteúdo.");
-            statusEl.textContent = "";
-            btn.disabled = false;
-        }
-    });
+            /* =====================================================
+               GERAR CONTEÚDO (FORM)
+            ===================================================== */
 
-    /* =====================================================
-       NAVEGAÇÃO / ABAS (CORRIGIDO)
-===================================================== */
+            const form = document.getElementById("form-briefing");
+            if (!form) return;
 
-    function abrirAba(tabId) {
-        document.querySelectorAll(".app-tab-pane").forEach(pane => {
-            pane.classList.toggle("is-hidden", pane.id !== tabId);
-        });
-    }
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
 
-    function ativarMenu(menuEl) {
-        document
-            .querySelectorAll(".app-header__nav-item")
-            .forEach(item => item.classList.remove("is-active"));
+                const statusEl = document.getElementById("form-status");
+                const btn = document.getElementById("btn-gerar");
+                const resultadoEl = document.getElementById("resultado");
+                const btnCopiar = document.getElementById("btn-copiar");
 
-        if (menuEl) menuEl.classList.add("is-active");
-    }
+                statusEl.textContent = "Gerando conteúdo...";
+                btn.disabled = true;
 
-    /* MENU SUPERIOR */
-    const navPainel = document.getElementById("nav-painel");
-    const navHistorico = document.getElementById("nav-historico");
+                const payload = {
+                    nicho: nicho.value,
+                    tema: tema.value,
+                    plataforma: plataforma.value,
+                    tom: tom.value,
+                    tamanho: tamanho.value,
+                    publico: publico.value,
+                    palavras_chave: palavras_chave.value,
+                    cta: cta.checked,
+                    hashtags: hashtags.checked,
+                    sugestoes_imagens: sugestoes_imagens.checked,
+                    modelo: modelo.value,
+                    temperature: temperature.value
+                };
 
-    if (navPainel) {
-        navPainel.addEventListener("click", () => {
-            abrirAba("tab-gerar");
-            ativarMenu(navPainel);
-        });
-    }
+                try {
+                    const response = await fetch("/api/gerar/", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer " + token
+                        },
+                        body: JSON.stringify(payload)
+                    });
 
-    if (navHistorico) {
-        navHistorico.addEventListener("click", () => {
-            abrirAba("tab-historico");
-            ativarMenu(navHistorico);
-            requestAnimationFrame(() => {
-                if (typeof carregarHistorico === "function") {
-                    carregarHistorico();
+                    const data = await response.json();
+
+                    if (response.status === 429) {
+                        atualizarUsoMensal(data.used, data.limit);
+                        abrirModalLimite();
+                        statusEl.textContent = "";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        alert(data.error || "Erro ao gerar conteúdo.");
+                        statusEl.textContent = "";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    resultadoEl.textContent = data.resultado;
+                    btnCopiar.disabled = false;
+                    atualizarUsoMensal(data.used, data.limit);
+
+                    statusEl.textContent = "Conteúdo gerado com sucesso!";
+                    btn.disabled = false;
+
+                } catch {
+                    alert("Erro inesperado ao gerar conteúdo.");
+                    statusEl.textContent = "";
+                    btn.disabled = false;
                 }
             });
-        });
-    }
 
-    /* ABAS INTERNAS */
-    document.querySelectorAll(".app-tabs__button").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const tabId = btn.dataset.tab;
+            /* =====================================================
+               NAVEGAÇÃO / ABAS (CORRIGIDO)
+        ===================================================== */
 
-            abrirAba(tabId);
-
-            // 🔑 CORREÇÃO: marcar botão ativo corretamente
-            document.querySelectorAll(".app-tabs__button")
-                .forEach(b => b.classList.remove("is-active"));
-            btn.classList.add("is-active");
-
-            if (tabId === "tab-historico") {
-                requestAnimationFrame(() => {
-                    if (typeof carregarHistorico === "function") {
-                        carregarHistorico();
-                    }
+            function abrirAba(tabId) {
+                document.querySelectorAll(".app-tab-pane").forEach(pane => {
+                    pane.classList.toggle("is-hidden", pane.id !== tabId);
                 });
             }
-        });
-    });
 
-});
-</script>
+            function ativarMenu(menuEl) {
+                document
+                    .querySelectorAll(".app-header__nav-item")
+                    .forEach(item => item.classList.remove("is-active"));
+
+                if (menuEl) menuEl.classList.add("is-active");
+            }
+
+            /* MENU SUPERIOR */
+            const navPainel = document.getElementById("nav-painel");
+            const navHistorico = document.getElementById("nav-historico");
+
+            if (navPainel) {
+                navPainel.addEventListener("click", () => {
+                    abrirAba("tab-gerar");
+                    ativarMenu(navPainel);
+                });
+            }
+
+            if (navHistorico) {
+                navHistorico.addEventListener("click", () => {
+                    abrirAba("tab-historico");
+                    ativarMenu(navHistorico);
+
+                    // 🔑 ESSENCIAL: sempre carregar o conteúdo da aba
+                    requestAnimationFrame(() => {
+                        if (typeof carregarHistorico === "function") {
+                            carregarHistorico();
+                        }
+                    });
+                });
+            }
+
+
+            /* ABAS INTERNAS */
+            document.querySelectorAll(".app-tabs__button").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const tabId = btn.dataset.tab;
+
+                    abrirAba(tabId);
+
+                    // 🔑 CORREÇÃO: marcar botão ativo corretamente
+                    document.querySelectorAll(".app-tabs__button")
+                        .forEach(b => b.classList.remove("is-active"));
+                    btn.classList.add("is-active");
+
+                    if (tabId === "tab-historico") {
+                        requestAnimationFrame(() => {
+                            if (typeof carregarHistorico === "function") {
+                                carregarHistorico();
+                            }
+                        });
+                    }
+                });
+            });
+
+        });
+    </script>
 
 
 </body>
