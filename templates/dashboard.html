@@ -332,318 +332,257 @@
         };
     </script>
 
-    <script>
-        /* =====================================================
-           HELPERS
-        ===================================================== */
+<script>
+/* =====================================================
+   HELPERS
+===================================================== */
 
-        function calcularDiasRestantes(dataFim) {
-            if (!dataFim) return 0;
-            const agora = new Date();
-            const fim = new Date(dataFim);
-            const diffMs = fim - agora;
-            return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-        }
+function calcularDiasRestantes(dataFim) {
+    if (!dataFim) return 0;
+    const agora = new Date();
+    const fim = new Date(dataFim);
+    const diffMs = fim - agora;
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
 
-        window.atualizarUsoMensal = function (used, limit) {
-            const usedEl = document.getElementById("usage-used");
-            const limitEl = document.getElementById("usage-limit");
-            if (usedEl) usedEl.textContent = used;
-            if (limitEl) limitEl.textContent = limit;
-        };
+window.atualizarUsoMensal = function (used, limit) {
+    const usedEl = document.getElementById("usage-used");
+    const limitEl = document.getElementById("usage-limit");
+    if (usedEl) usedEl.textContent = used;
+    if (limitEl) limitEl.textContent = limit;
+};
 
-        window.abrirModalLimite = function () {
-            const el = document.getElementById("modal-limite");
-            if (el) el.classList.add("is-visible");
-        };
+window.abrirModalLimite = function () {
+    const el = document.getElementById("modal-limite");
+    if (el) el.classList.add("is-visible");
+};
 
-        window.fecharModalLimite = function () {
-            const el = document.getElementById("modal-limite");
-            if (el) el.classList.remove("is-visible");
-        };
+window.fecharModalLimite = function () {
+    const el = document.getElementById("modal-limite");
+    if (el) el.classList.remove("is-visible");
+};
 
-        /* =====================================================
-           DASHBOARD
-        ===================================================== */
+/* =====================================================
+   DASHBOARD
+===================================================== */
 
-        document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
-            const token = localStorage.getItem("access_token");
-            if (!token) {
-                window.location.href = "/login/";
-                return;
-            }
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        window.location.href = "/login/";
+        return;
+    }
 
-            /* =========================
-               PERFIL / PLANO
-            ========================= */
-            let userData = null;
+    /* =========================
+       PERFIL / PLANO
+    ========================= */
+    let userData = null;
 
-            try {
-                const resp = await fetch("/api/me/", {
-                    headers: { Authorization: "Bearer " + token }
-                });
-
-                if (!resp.ok) throw new Error();
-
-                userData = await resp.json();
-                window.userPlan = userData.plan;
-
-            } catch {
-                localStorage.clear();
-                window.location.href = "/login/";
-                return;
-            }
-
-            /* =========================
-               USO MENSAL
-            ========================= */
-            try {
-                const usageResp = await fetch("/api/usage/", {
-                    headers: { Authorization: "Bearer " + token }
-                });
-
-                if (usageResp.ok) {
-                    const usage = await usageResp.json();
-                    atualizarUsoMensal(usage.used, usage.limit);
-                }
-            } catch { }
-
-            /* =========================
-               LOGOUT
-            ========================= */
-            const btnLogout = document.getElementById("btn-logout");
-            if (btnLogout) {
-                btnLogout.onclick = async () => {
-                    try {
-                        await fetch("/auth/logout/", {
-                            method: "POST",
-                            headers: {
-                                "Authorization": "Bearer " + token,
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                refresh: localStorage.getItem("refresh_token")
-                            })
-                        });
-                    } catch { }
-
-                    localStorage.clear();
-                    window.location.href = "/login/";
-                };
-            }
-
-            /* =====================================================
-               GERAR CONTEÚDO (FORM)
-            ===================================================== */
-
-            const form = document.getElementById("form-briefing");
-            if (!form) return;
-
-            form.addEventListener("submit", async (e) => {
-                e.preventDefault();
-
-                const statusEl = document.getElementById("form-status");
-                const btn = document.getElementById("btn-gerar");
-                const resultadoEl = document.getElementById("resultado");
-                const btnCopiar = document.getElementById("btn-copiar");
-
-                statusEl.textContent = "Gerando conteúdo...";
-                btn.disabled = true;
-
-                const payload = {
-                    nicho: nicho.value,
-                    tema: tema.value,
-                    plataforma: plataforma.value,
-                    tom: tom.value,
-                    tamanho: tamanho.value,
-                    publico: publico.value,
-                    palavras_chave: palavras_chave.value,
-                    cta: cta.checked,
-                    hashtags: hashtags.checked,
-                    sugestoes_imagens: sugestoes_imagens.checked,
-                    modelo: modelo.value,
-                    temperature: temperature.value
-                };
-
-                try {
-                    const response = await fetch("/api/gerar/", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer " + token
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const data = await response.json();
-
-                    /* 🔒 LIMITE ATINGIDO */
-                    if (response.status === 429) {
-                        atualizarUsoMensal(data.used, data.limit);
-                        abrirModalLimite();
-                        statusEl.textContent = "";
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    /* ❌ ERRO */
-                    if (!response.ok) {
-                        alert(data.error || "Erro ao gerar conteúdo.");
-                        statusEl.textContent = "";
-                        btn.disabled = false;
-                        return;
-                    }
-
-                    /* ✅ SUCESSO */
-                    resultadoEl.textContent = data.resultado;
-                    btnCopiar.disabled = false;
-                    atualizarUsoMensal(data.used, data.limit);
-
-                    statusEl.textContent = "Conteúdo gerado com sucesso!";
-                    btn.disabled = false;
-
-                } catch (err) {
-                    alert("Erro inesperado ao gerar conteúdo.");
-                    statusEl.textContent = "";
-                    btn.disabled = false;
-                }
-            });
-
-            /* =====================================================
-               NAVEGAÇÃO / ABAS
-            ===================================================== */
-
-            function abrirAba(tabId) {
-                document.querySelectorAll(".app-tab-pane").forEach(pane => {
-                    pane.classList.toggle("is-hidden", pane.id !== tabId);
-                });
-            }
-
-            function ativarMenu(menuEl) {
-                document
-                    .querySelectorAll(".app-header__nav-item")
-                    .forEach(item => item.classList.remove("is-active"));
-
-                if (menuEl) menuEl.classList.add("is-active");
-            }
-
-            /* MENU SUPERIOR */
-            const navPainel = document.getElementById("nav-painel");
-            const navHistorico = document.getElementById("nav-historico");
-
-            /* PAINEL */
-            if (navPainel) {
-                navPainel.addEventListener("click", () => {
-                    abrirAba("tab-gerar");
-                    ativarMenu(navPainel);
-                });
-            }
-
-            /* HISTÓRICO (SEM BLOQUEAR PLANO BASIC) */
-            if (navHistorico) {
-                navHistorico.addEventListener("click", () => {
-                    abrirAba("tab-historico");
-                    ativarMenu(navHistorico);
-
-                    // carrega conteúdo após aba visível
-                    requestAnimationFrame(() => {
-                        if (typeof carregarHistorico === "function") {
-                            carregarHistorico();
-                        }
-                    });
-                });
-            }
-
-            /* BOTÕES DE ABA INTERNOS */
-            document.querySelectorAll(".app-tabs__button").forEach(btn => {
-                btn.addEventListener("click", () => {
-                    const tabId = btn.dataset.tab;
-                    abrirAba(tabId);
-
-                    if (tabId === "tab-historico") {
-                        requestAnimationFrame(() => {
-                            if (typeof carregarHistorico === "function") {
-                                carregarHistorico();
-                            }
-                        });
-                    }
-                });
-            });
-
-            /* =====================================================
-               HISTÓRICO (COM BLOQUEIO PREMIUM PARA BASIC)
-            ===================================================== */
-
-            window.carregarHistorico = async function () {
-                const container = document.getElementById("historico-lista");
-                if (!container) return;
-
-                /* 🔒 PLANO BASIC — AVISO PREMIUM */
-                if (window.userPlan === "Basic") {
-                    container.innerHTML = `
-            <div class="history-locked">
-                <h3>Histórico e exportação em PDF</h3>
-                <p>
-                    Disponível a partir do <strong>plano Creator</strong>.
-                </p>
-                <ul>
-                    <li>✔️ Acesso ao histórico de conteúdos</li>
-                    <li>✔️ Exportação em PDF</li>
-                    <li>✔️ Organização por cliente/nicho</li>
-                </ul>
-                <a
-                    href="https://gerador-conteudo.codertec.com.br/#planos"
-                    target="_blank"
-                    class="btn-primary"
-                >
-                    Fazer upgrade
-                </a>
-            </div>
-        `;
-                    return;
-                }
-
-                /* 🔓 PLANOS CREATOR / ELITE */
-                const token = localStorage.getItem("access_token");
-                container.innerHTML = "<p>Carregando histórico...</p>";
-
-                try {
-                    const response = await fetch("/api/historico/", {
-                        headers: { Authorization: "Bearer " + token }
-                    });
-
-                    if (!response.ok) {
-                        container.innerHTML = "<p>Erro ao carregar histórico.</p>";
-                        return;
-                    }
-
-                    const data = await response.json();
-
-                    if (!Array.isArray(data) || data.length === 0) {
-                        container.innerHTML = "<p>Nenhum conteúdo gerado ainda.</p>";
-                        return;
-                    }
-
-                    container.innerHTML = data.map((item, index) => `
-            <div class="history-item">
-                <div class="history-meta">
-                    <strong>${item.tema}</strong><br>
-                    <small>${item.plataforma}</small>
-                </div>
-                <pre class="history-content">${item.conteudo}</pre>
-            </div>
-        `).join("");
-
-                } catch {
-                    container.innerHTML = "<p>Erro inesperado ao carregar histórico.</p>";
-                }
-            };
-
-
-
+    try {
+        const resp = await fetch("/api/me/", {
+            headers: { Authorization: "Bearer " + token }
         });
-    </script>
+
+        if (!resp.ok) throw new Error();
+
+        userData = await resp.json();
+        window.userPlan = userData.plan;
+
+    } catch {
+        localStorage.clear();
+        window.location.href = "/login/";
+        return;
+    }
+
+    /* =========================
+       USO MENSAL
+    ========================= */
+    try {
+        const usageResp = await fetch("/api/usage/", {
+            headers: { Authorization: "Bearer " + token }
+        });
+
+        if (usageResp.ok) {
+            const usage = await usageResp.json();
+            atualizarUsoMensal(usage.used, usage.limit);
+        }
+    } catch {}
+
+    /* =========================
+       AJUSTES DE UI POR PLANO
+    ========================= */
+    if (window.userPlan === "Basic") {
+        const filtros = document.querySelector(".history-filters");
+        if (filtros) filtros.style.display = "none";
+
+        const exportBox = document.querySelector(".history-actions-global");
+        if (exportBox) exportBox.style.display = "none";
+    }
+
+    /* =========================
+       LOGOUT
+    ========================= */
+    const btnLogout = document.getElementById("btn-logout");
+    if (btnLogout) {
+        btnLogout.onclick = async () => {
+            try {
+                await fetch("/auth/logout/", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        refresh: localStorage.getItem("refresh_token")
+                    })
+                });
+            } catch {}
+
+            localStorage.clear();
+            window.location.href = "/login/";
+        };
+    }
+
+    /* =====================================================
+       GERAR CONTEÚDO (FORM)
+    ===================================================== */
+
+    const form = document.getElementById("form-briefing");
+    if (!form) return;
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const statusEl = document.getElementById("form-status");
+        const btn = document.getElementById("btn-gerar");
+        const resultadoEl = document.getElementById("resultado");
+        const btnCopiar = document.getElementById("btn-copiar");
+
+        statusEl.textContent = "Gerando conteúdo...";
+        btn.disabled = true;
+
+        const payload = {
+            nicho: nicho.value,
+            tema: tema.value,
+            plataforma: plataforma.value,
+            tom: tom.value,
+            tamanho: tamanho.value,
+            publico: publico.value,
+            palavras_chave: palavras_chave.value,
+            cta: cta.checked,
+            hashtags: hashtags.checked,
+            sugestoes_imagens: sugestoes_imagens.checked,
+            modelo: modelo.value,
+            temperature: temperature.value
+        };
+
+        try {
+            const response = await fetch("/api/gerar/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.status === 429) {
+                atualizarUsoMensal(data.used, data.limit);
+                abrirModalLimite();
+                statusEl.textContent = "";
+                btn.disabled = false;
+                return;
+            }
+
+            if (!response.ok) {
+                alert(data.error || "Erro ao gerar conteúdo.");
+                statusEl.textContent = "";
+                btn.disabled = false;
+                return;
+            }
+
+            resultadoEl.textContent = data.resultado;
+            btnCopiar.disabled = false;
+            atualizarUsoMensal(data.used, data.limit);
+
+            statusEl.textContent = "Conteúdo gerado com sucesso!";
+            btn.disabled = false;
+
+        } catch {
+            alert("Erro inesperado ao gerar conteúdo.");
+            statusEl.textContent = "";
+            btn.disabled = false;
+        }
+    });
+
+    /* =====================================================
+       NAVEGAÇÃO / ABAS (CORRIGIDO)
+===================================================== */
+
+    function abrirAba(tabId) {
+        document.querySelectorAll(".app-tab-pane").forEach(pane => {
+            pane.classList.toggle("is-hidden", pane.id !== tabId);
+        });
+    }
+
+    function ativarMenu(menuEl) {
+        document
+            .querySelectorAll(".app-header__nav-item")
+            .forEach(item => item.classList.remove("is-active"));
+
+        if (menuEl) menuEl.classList.add("is-active");
+    }
+
+    /* MENU SUPERIOR */
+    const navPainel = document.getElementById("nav-painel");
+    const navHistorico = document.getElementById("nav-historico");
+
+    if (navPainel) {
+        navPainel.addEventListener("click", () => {
+            abrirAba("tab-gerar");
+            ativarMenu(navPainel);
+        });
+    }
+
+    if (navHistorico) {
+        navHistorico.addEventListener("click", () => {
+            abrirAba("tab-historico");
+            ativarMenu(navHistorico);
+            requestAnimationFrame(() => {
+                if (typeof carregarHistorico === "function") {
+                    carregarHistorico();
+                }
+            });
+        });
+    }
+
+    /* ABAS INTERNAS */
+    document.querySelectorAll(".app-tabs__button").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const tabId = btn.dataset.tab;
+
+            abrirAba(tabId);
+
+            // 🔑 CORREÇÃO: marcar botão ativo corretamente
+            document.querySelectorAll(".app-tabs__button")
+                .forEach(b => b.classList.remove("is-active"));
+            btn.classList.add("is-active");
+
+            if (tabId === "tab-historico") {
+                requestAnimationFrame(() => {
+                    if (typeof carregarHistorico === "function") {
+                        carregarHistorico();
+                    }
+                });
+            }
+        });
+    });
+
+});
+</script>
 
 
 </body>
