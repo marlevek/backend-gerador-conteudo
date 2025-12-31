@@ -79,33 +79,21 @@ def webhook_pagamento(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def criar_assinatura(request):
-    try:
-        plan_id = request.data.get("plan_id")
-        print("PLAN_ID RECEBIDO:", plan_id)
+    plan_id = request.data.get("plan_id")
 
-        if not plan_id:
-            return Response({"error": "Plano não informado"}, status=400)
+    if not plan_id:
+        return Response({"error": "Plano não informado"}, status=400)
 
-        plan = Plan.objects.filter(id=int(plan_id)).first()
-        print("PLANO ENCONTRADO:", plan)
+    plan = Plan.objects.filter(id=plan_id, active=True).first()
 
-        if not plan:
-            return Response({"error": "Plano inválido"}, status=404)
+    if not plan:
+        return Response({"error": "Plano inválido"}, status=404)
 
-        checkout_url = (
-            "https://www.mercadopago.com.br/subscriptions/checkout"
-            f"?preapproval_plan_id={plan.external_reference}"
-        )
+    checkout_url = (
+        "https://www.mercadopago.com.br/subscriptions/checkout"
+        f"?preapproval_plan_id={plan.external_reference}"
+    )
 
-        return Response({"checkout_url": checkout_url})
-
-    except Exception as e:
-        print("ERRO REAL:", repr(e))
-        return Response(
-            {
-                "error": "Erro interno",
-                "detail": str(e),
-                "type": e.__class__.__name__
-            },
-            status=500
-        )
+    return Response({
+        "checkout_url": checkout_url
+    })
