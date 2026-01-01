@@ -128,60 +128,56 @@ class GerarConteudoView(APIView):
 def me(request):
     user = request.user
 
-    subscription = get_valid_subscription(user)
+    subscription = (
+        Subscription.objects
+        .filter(user=user)
+        .select_related('plan')
+        .order_by('-start_date')
+        .first()
+    )
 
-    
-    # 🔑 1) Se não existir assinatura, cria TRIAL automático (7 dias, plano Creator)
-    if not subscription:
-        plan_creator = Plan.objects.filter(name='Creator').first()
-        if plan_creator:
-            subscription = Subscription.objects.create(
-                user=user,
-                plan=plan_creator,
-                status='trial',
-                active=True,
-                start_date=now(),
-                end_date=now() + timedelta(days=7),
-            )
-    
-    # 🔑 2) Assinatura realmente válida (trial ativo ou assinatura ativa)
     valid_subscription = get_valid_subscription(user)
-
-    # 🔑 3) Uso mensal sempre existe
     usage = get_or_create_monthly_usage(user)
 
-    # 🔑 4) Plano e capabilities só da assinatura válida
-    plan_name = (
-        valid_subscription.plan.name
-        if valid_subscription and valid_subscription.plan
-        else 'Basic'
+    is_trial = (
+        subscription
+        and subscription.status == "trial"
+        and subscription.end_date
+        and subscription.end_date >= now()
     )
     
-    capabilities = PLAN_CAPABILITIES.get(plan_name, {})
-    
-    # 🔑 5) Limite só existe se houver plano válido
-    limit = (
-        valid_subscription.plan.max_posts
-        if valid_subscription and valid_subscription.plan
-        else 0
-    )
+    if valid_subscription and valid_subscription.plan:
+         plan_name = valid_subscription.plan.name
+         capabilities = PLAN_CAPABILITIES.get(plan_name, {})
+         limit = valid_subscription.plan.max_posts
+    else:
+        plan_name = None
+        capabilities = {} 
+        limit = 0
 
     return Response({
         "email": user.email,
         "is_authenticated": True,
 
-        # Verdade para o frontend
+        # acesso técnico (trial OU pago)
         "subscription_active": bool(valid_subscription),
-        "subscription_status": valid_subscription.status if valid_subscription else None,
-        "trial_ends_at": valid_subscription.end_date if valid_subscription else None,
 
+        # estado da assinatura
+        "subscription_status": subscription.status if subscription else None,
+        "trial_ends_at": subscription.end_date if is_trial else None,
+
+        # plano real
         "plan": plan_name,
+        "is_trial": is_trial,
+
+        # capacidades
         "capabilities": capabilities,
 
-        # Uso mensal
+        # uso
         "used": usage.used_posts,
         "limit": limit,
-    })   
+    })
+
 
 
 @api_view(["GET"])
