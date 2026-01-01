@@ -464,9 +464,6 @@
             }
 
 
-
-
-
             /* =========================
                USO MENSAL
             ========================= */
@@ -591,8 +588,8 @@
             });
 
             /* =====================================================
-               NAVEGAÇÃO / ABAS (CORRIGIDO)
-        ===================================================== */
+       NAVEGAÇÃO / ABAS (CORRIGIDO)
+    ===================================================== */
 
             function abrirAba(tabId) {
                 document.querySelectorAll(".app-tab-pane").forEach(pane => {
@@ -608,6 +605,16 @@
                 if (menuEl) menuEl.classList.add("is-active");
             }
 
+            /* 🔑 NOVO: sincroniza os botões das abas internas */
+            function ativarAbaInterna(tabId) {
+                document.querySelectorAll(".app-tabs__button").forEach(btn => {
+                    btn.classList.toggle(
+                        "is-active",
+                        btn.dataset.tab === tabId
+                    );
+                });
+            }
+
             /* MENU SUPERIOR */
             const navPainel = document.getElementById("nav-painel");
             const navHistorico = document.getElementById("nav-historico");
@@ -616,6 +623,7 @@
                 navPainel.addEventListener("click", () => {
                     abrirAba("tab-gerar");
                     ativarMenu(navPainel);
+                    ativarAbaInterna("tab-gerar"); // ✅ CORREÇÃO
                 });
             }
 
@@ -623,6 +631,7 @@
                 navHistorico.addEventListener("click", () => {
                     abrirAba("tab-historico");
                     ativarMenu(navHistorico);
+                    ativarAbaInterna("tab-historico"); // ✅ CORREÇÃO
 
                     // 🔑 ESSENCIAL: sempre carregar o conteúdo da aba
                     requestAnimationFrame(() => {
