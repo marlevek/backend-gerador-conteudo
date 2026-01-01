@@ -416,21 +416,21 @@
             Faltam <strong>${dias} dias</strong> para o fim do seu teste.
             Continue gerando conteúdos com IA sem interrupções.
         `;
-                        cta = "Continuar com o plano Creator";
+                        cta = "Escolha um plano para continuar";
                         classe = "trial-info";
                     } else if (dias === 1) {
                         titulo = "⚠️ Último dia do seu teste gratuito";
                         texto = `
-            Amanhã o acesso ao histórico e às exportações será pausado.
+            Amanhã a geração de novos conteúdos será bloqueada.
             Faça o upgrade agora para não perder nada.
         `;
                         cta = "Fazer upgrade agora";
                         classe = "trial-warning";
                     } else {
-                        titulo = "🚨 Seu teste termina hoje";
+                        titulo = "🚨 Seu teste gratuito terminou";
                         texto = `
-            Para continuar usando o Gerador de Conteúdo com IA sem bloqueios,
-            ative seu plano agora.
+            O período de teste foi encerrado.
+    Ative um plano para continuar gerando conteúdos com IA.
         `;
                         cta = "Ativar plano agora";
                         classe = "trial-danger";
