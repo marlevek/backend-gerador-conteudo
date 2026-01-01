@@ -28,13 +28,13 @@ class RegisterView(APIView):
             if not email or not password:
                 return Response(
                     {'error': 'Email e senha são obrigatórios'},
-                    status=400
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
             if User.objects.filter(username=email).exists():
                 return Response(
                     {"error": "Usuário já existe"},
-                    status=400
+                    status=status.HTTP_400_BAD_REQUEST
                 )
             
             # BLOQUEIO DO BETA
@@ -57,17 +57,17 @@ class RegisterView(APIView):
                 password=password
             )
 
-            # 2. Buscar plano CREATOR (trial é creator)
-            creator_plan = Plan.objects.get(
-                external_reference='creator_monthly'
+            # 2. Trial é sempre Basic
+            basic_plan = Plan.objects.get(
+                external_reference='basic_monthly'
             )
 
             # 3. Criar subscription de trial
             Subscription.objects.create(
                 user=user,
-                plan=creator_plan,
+                plan=basic_plan,
                 status='trial',
-                active=True,
+                active=False,
                 end_date=now() + timedelta(days=7),
             )
 
