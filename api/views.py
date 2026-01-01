@@ -34,18 +34,15 @@ class GerarConteudoView(APIView):
         data = request.data
 
         # Verificar Assinatura
-        subscription = Subscription.objects.filter(
-            user=user,
-            active=True,
-        ).select_related('plan').first()
+        valid_subscription = get_valid_subscription(user)
 
-        if not subscription:
+        if not valid_subscription:
             return Response(
                 {'error': 'Assinatura inativa ou inexistente'},
                 status=403
             )
 
-        plan = subscription.plan
+        plan = valid_subscription.plan
 
         PLATAFORMAS_VIDEO = [
             'Instagram Reels',
