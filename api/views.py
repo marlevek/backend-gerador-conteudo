@@ -131,9 +131,8 @@ class GerarConteudoView(APIView):
 def me(request):
     user = request.user
 
-    subscription = (
-        Subscription.objects.filter(user=user).select_related('plan').order_by('-start_date').first()
-    )
+    subscription = get_valid_subscription(user)
+
     
     # 🔑 1) Se não existir assinatura, cria TRIAL automático (7 dias, plano Creator)
     if not subscription:
@@ -158,7 +157,7 @@ def me(request):
     plan_name = (
         valid_subscription.plan.name
         if valid_subscription and valid_subscription.plan
-        else None
+        else 'Basic'
     )
     
     capabilities = PLAN_CAPABILITIES.get(plan_name, {})

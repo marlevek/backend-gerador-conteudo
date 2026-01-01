@@ -74,34 +74,31 @@ def webhook_pagamento(request):
     plan = Plan.objects.filter(external_reference=plan_id).first()
     if not plan:
         return Response({"error": "Plano não encontrado"}, status=404)
+    
+    # ✅ Apenas status pagos/ativos criam assinatura válida
+    if status in ["authorized", "approved", "paid", "active"]:
+        Subscription.objects.create(
+            user=user,
+            plan=plan,
+            status="active",
+            active=True,
+            start_date=now(),
+            end_date=now() + timedelta(
+                days=365 if plan.recurrence == "yearly" else 30
+            ),
+            mercado_pago_subscription_id=mp_subscription_id,
+            last_payment_status=status,
+        )
 
-    sub, created = Subscription.objects.get_or_create(user=user)
-    sub.plan = plan
-    sub.mercado_pago_subscription_id = mp_subscription_id
-
-    # Estados válidos do Mercado Pago
-    if status in ['authorized', 'approved', 'paid', 'active']:
-        sub.active = True
-        sub.status = 'active'
-        sub.last_payment_status = status
-        sub.start_date = now()
-
-        # Calcular recorrência corretamente
-        if plan.recurrence == 'yearly':
-            sub.end_date = now() + timedelta(days=365)
-        else:
-            sub.end_date = None
-
-    else:
-        sub.active = False
-        sub.status = 'cancelled'
-        sub.last_payment_status = status
-        sub.end_date = now()
-
-    sub.save() 
-
-   
-    return Response({"message": "Webhook processado com sucesso"}, status=200)
+        return Response(
+            {"message": "Assinatura ativada com sucesso"},
+            status=200
+        )
+        # ❌ Pagamento negado / cancelado → não cria assinatura
+    return Response(
+        {"message": "Pagamento não aprovado", "status": status},
+        status=200
+    )
 
 
 
