@@ -82,6 +82,7 @@ def webhook_pagamento(request):
     # Estados válidos do Mercado Pago
     if status in ['authorized', 'approved', 'paid', 'active']:
         sub.active = True
+        sub.status = 'active'
         sub.last_payment_status = status
         sub.start_date = now()
 
@@ -89,17 +90,17 @@ def webhook_pagamento(request):
         if plan.recurrence == 'yearly':
             sub.end_date = now() + timedelta(days=365)
         else:
-            sub.end_date = now() + timedelta(days=30)
+            sub.end_date = None
 
     else:
         sub.active = False
+        sub.status = 'cancelled'
         sub.last_payment_status = status
+        sub.end_date = now()
 
     sub.save() 
 
-    # Garantir controle de uso mensal
-    get_or_create_monthly_usage(user)
-
+   
     return Response({"message": "Webhook processado com sucesso"}, status=200)
 
 

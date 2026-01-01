@@ -14,6 +14,9 @@ from datetime import timedelta
 
 
 
+
+MAX_BETA_USERS = 15
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
@@ -33,6 +36,19 @@ class RegisterView(APIView):
                     {"error": "Usuário já existe"},
                     status=400
                 )
+            
+            # BLOQUEIO DO BETA
+            total_beta_users = Subscription.objects.filter(
+                status = 'trial'
+            ).count()
+            
+            if total_beta_users >= MAX_BETA_USERS:
+                return Response(
+                    {
+                        'error': "🚧 Beta fechado. As 15 vagas já foram preenchidas."
+                    },
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
             # 1. Criar usuário
             user = User.objects.create_user(
@@ -41,17 +57,17 @@ class RegisterView(APIView):
                 password=password
             )
 
-            # 2. Buscar plano BASIC (já seedado)
-            basic_plan = Plan.objects.get(
-                external_reference='basic_monthly'
+            # 2. Buscar plano CREATOR (trial é creator)
+            creator_plan = Plan.objects.get(
+                external_reference='creator_monthly'
             )
 
             # 3. Criar subscription de trial
             Subscription.objects.create(
                 user=user,
-                plan=basic_plan,
+                plan=creator_plan,
                 status='trial',
-                active=False,
+                active=True,
                 end_date=now() + timedelta(days=7),
             )
 
@@ -62,16 +78,17 @@ class RegisterView(APIView):
                 'message': "Usuário criado com sucesso",
                 "refresh": str(refresh),
                 "access": str(refresh.access_token),
-            })
+            },
+            status=status.HTTP_201_CREATED
+            )
 
         except Exception as e:
             print("❌ ERRO REGISTER:", repr(e))
             return Response(
                 {'error': 'Erro ao criar conta'},
-                status=500
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
