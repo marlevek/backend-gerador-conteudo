@@ -208,15 +208,19 @@ def historico(request):
     user = request.user
     plataforma = request.GET.get('plataforma')
 
-    subscription = Subscription.objects.filter(
-        user=user,
-        active=True
-    ).select_related("plan").first()
+    subscription =(
+        Subscription.objects.filter(user=user).select_related('plan').order_by('-start_date').first()
+        )
 
     if not subscription:
         return Response({"error": "Assinatura inativa"}, status=403)
-
-    plan = subscription.plan
+    
+    # trial e basic não tem histórico
+    if subscription.status == 'trial' or subscription.plan.name == 'Basic':
+        return Response(
+            {'error': 'Histórico disponível apenas a partir do plano creator'},
+            status=403
+        )
 
     qs = ContentHistory.objects.filter(user=user)
 
@@ -224,24 +228,11 @@ def historico(request):
     if plataforma:
         qs = qs.filter(plataforma=plataforma)
 
-    # Regras por plano
-    if plan.name == "Creator":
-        limite_data = timezone.now() - timedelta(days=30)
-        qs = qs.filter(created_at__gte=limite_data)
-
-    elif plan.name == "Basic":
-        return Response(
-            {"error": "Histórico indisponível neste plano"},
-            status=403
+    # Creator - últimos 30 dias
+    if subscription.plan.name == 'Creator':
+        qs = qs.filter(
+            created_at__gte=timezone.now() - timedelta(days=30)
         )
-
-    # Elite = ilimitado
-
-    # Filtro por plataforma (opcional)
-    plataforma = request.GET.get("plataforma")
-    if plataforma:
-        qs = qs.filter(plataforma=plataforma)
-
     data = [
         {
             "id": h.id,
@@ -253,7 +244,6 @@ def historico(request):
         }
         for h in qs.order_by('-created_at')[:100]
     ]
-
     return Response(data)
 
 
