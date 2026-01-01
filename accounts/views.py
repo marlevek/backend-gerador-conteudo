@@ -58,9 +58,15 @@ class RegisterView(APIView):
             )
 
             # 2. Trial é sempre Basic
-            basic_plan = Plan.objects.get(
+            basic_plan = Plan.objects.filter(
                 external_reference='basic_monthly'
-            )
+            ).first()
+            
+            if not basic_plan:
+                return Response(
+                    {'error': 'Plano Basic não configurado no sistema.'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             # 3. Criar subscription de trial
             Subscription.objects.create(
