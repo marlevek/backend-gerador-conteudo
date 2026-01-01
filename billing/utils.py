@@ -58,9 +58,7 @@ def get_valid_subscription(user):
 
     # Trial válido
     if sub.status == "trial" and sub.end_date and sub.end_date >= now():
-        sub.active = False 
-        sub.save(update_fields=['active'])
-        return None
+       return sub
 
     # Assinatura ativa
     if sub.status == "active" and sub.active:
