@@ -50,9 +50,10 @@ def criar_assinatura(request):
 @permission_classes([AllowAny])
 def webhook_pagamento(request):
     data = request.data
+    
+    status_mp = data.get('status') or data.get('action')
 
     # Tolerância ao payload do MP
-    status = data.get("status") or data.get("action")
     payer_email = (
         data.get("payer_email")
         or data.get("buyer_email")
@@ -75,30 +76,41 @@ def webhook_pagamento(request):
     if not plan:
         return Response({"error": "Plano não encontrado"}, status=404)
     
-    # ✅ Apenas status pagos/ativos criam assinatura válida
-    if status in ["authorized", "approved", "paid", "active"]:
-        Subscription.objects.create(
-            user=user,
-            plan=plan,
-            status="active",
-            active=True,
-            start_date=now(),
-            end_date=now() + timedelta(
-                days=365 if plan.recurrence == "yearly" else 30
-            ),
-            mercado_pago_subscription_id=mp_subscription_id,
-            last_payment_status=status,
-        )
-
-        return Response(
-            {"message": "Assinatura ativada com sucesso"},
-            status=200
-        )
-        # ❌ Pagamento negado / cancelado → não cria assinatura
-    return Response(
-        {"message": "Pagamento não aprovado", "status": status},
-        status=200
+    # Regra de ouro: 1 subscription por usuário
+    sub, created = Subscription.objects.get_or_create(
+        user = user,
+        defaults={
+            'plan': plan,
+            'status': 'pending',
+            'active': False,
+        }
     )
+    
+    # Atualiza dados
+    sub.plan = plan 
+    sub.mercado_pago_subscription_id = mp_subscription_id 
+    sub.last_payment_status = status_mp
+    
+    if status_mp in ["authorized", "approved", "paid", "active"]:
+        sub.status = 'active'
+        sub.active = True 
+        sub.start_date = now()
+        
+        if plan.recurrence == 'yearly':
+            sub.end_date = now() + timedelta(days=365)
+        else:
+            sub.end_date = now() + timedelta(days=30)
+    
+    else:
+        sub.active = False 
+        sub.status = 'pending'
+        
+    sub.save()
+    
+    return Response({'message': 'Webhook processado com sucesso.'}, status=200)
+        
+    
+    
 
 
 
