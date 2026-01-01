@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from billing.models import Plan, Subscription
 from django.utils.timezone import now
 from datetime import timedelta
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 
@@ -58,8 +59,11 @@ class RegisterView(APIView):
             )
 
             # 2. Trial é sempre Basic
+            # ID REAL do plano Basic no Mercado Pago
+            BASIC_MP_PLAN_ID = "9e22c75ee6604bc7b5df2a494f798294"
+            
             basic_plan = Plan.objects.filter(
-                external_reference='basic_monthly'
+                external_reference=BASIC_MP_PLAN_ID
             ).first()
             
             if not basic_plan:
