@@ -40,28 +40,33 @@ def get_or_create_monthly_usage(user):
 
 
 def get_valid_subscription(user):
-    """
-    Retorna a assinatura válida do usuário:
-    - trial ainda válido
-    - ou assinatura ativa
-    Caso contrário, retorna None.
-    """
+    now_time = now()
+
+    # 1️⃣ Assinatura paga ativa (prioridade máxima)
     sub = (
         Subscription.objects
-        .filter(user=user)
+        .filter(
+            user=user,
+            active=True,
+            status__in=["active", "approved"],
+        )
         .order_by("-start_date")
         .first()
     )
 
-    if not sub:
-        return None
-
-    # Trial válido
-    if sub.status == "trial" and sub.end_date and sub.end_date >= now():
-       return sub
-
-    # Assinatura ativa
-    if sub.status == "active" and sub.active:
+    if sub:
         return sub
 
-    return None
+    # 2️⃣ Trial válido (Basic, pending ou trial)
+    sub = (
+        Subscription.objects
+        .filter(
+            user=user,
+            status__in=["trial", "pending"],
+            end_date__gte=now_time,
+        )
+        .order_by("-end_date")
+        .first()
+    )
+
+    return sub
