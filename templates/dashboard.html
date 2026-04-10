@@ -520,13 +520,55 @@
             const form = document.getElementById("form-briefing");
             if (!form) return;
 
+            const resultadoEl = document.getElementById("resultado");
+            const btnCopiar = document.getElementById("btn-copiar");
+
+            async function copiarResultado() {
+                const texto = resultadoEl?.textContent?.trim();
+                if (!texto) return;
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(texto);
+                    return;
+                }
+
+                const textarea = document.createElement("textarea");
+                textarea.value = texto;
+                textarea.setAttribute("readonly", "");
+                textarea.style.position = "fixed";
+                textarea.style.top = "-9999px";
+                document.body.appendChild(textarea);
+                textarea.select();
+                const copiado = document.execCommand("copy");
+                document.body.removeChild(textarea);
+
+                if (!copiado) {
+                    throw new Error("Falha ao copiar");
+                }
+            }
+
+            if (btnCopiar) {
+                btnCopiar.addEventListener("click", async () => {
+                    const textoOriginal = btnCopiar.textContent;
+
+                    try {
+                        await copiarResultado();
+                        btnCopiar.textContent = "Texto copiado!";
+                    } catch {
+                        alert("N\u00e3o foi poss\u00edvel copiar o texto automaticamente.");
+                    } finally {
+                        window.setTimeout(() => {
+                            btnCopiar.textContent = textoOriginal;
+                        }, 1800);
+                    }
+                });
+            }
+
             form.addEventListener("submit", async (e) => {
                 e.preventDefault();
 
                 const statusEl = document.getElementById("form-status");
                 const btn = document.getElementById("btn-gerar");
-                const resultadoEl = document.getElementById("resultado");
-                const btnCopiar = document.getElementById("btn-copiar");
 
                 statusEl.textContent = "Gerando conteúdo...";
                 btn.disabled = true;
